@@ -12,6 +12,7 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "struct enum trait type union";
     lang.comment_leader = "// ";
     lang.has_bang_calls = true;
+    lang.has_members = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "n");
     lang.string("br", "\"", "", "R");

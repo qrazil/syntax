@@ -10,6 +10,7 @@ pub SYN_lang.Lang define() {
     lang.word_start = ".";
     lang.word_body = ".";
     lang.comment_leader = "# ";
+    lang.has_shebang = true;
     lang.has_caps = false;
     lang.line_comment("#");
     lang.string("\"", "\"", "\\", "");

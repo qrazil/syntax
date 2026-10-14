@@ -4,6 +4,7 @@
 import core.SYN_class;
 import core.SYN_code;
 import core.SYN_lang;
+import core.SYN_registry;
 import core.SYN_scanner;
 
 bool is_space(int byte) {
@@ -22,7 +23,20 @@ bool is_blank(str line) {
     return indent_of(line) == line.size();
 }
 
-/// A unified (or context) diff, one line at a time. State 1: inside a hunk.
+// the end of the run of non-blanks starting at `from`
+int word_end(str line, int from) {
+    int position = from;
+    while (position < line.size() && !is_space(line.byte_at(position))) {
+        position = position + 1;
+    }
+    return position;
+}
+
+/// A unified (or context) diff, one line at a time, as tree-sitter's diff
+/// highlights it: `diff` is a function and its paths special, `index` a
+/// keyword with constant hashes, `---`/`+++` lines deletions and additions
+/// with a special path, hunk headers attributes, and +/- lines added /
+/// removed after their marker. State 1: inside a hunk.
 pub void scan_diff(SYN_scanner.Scanner scanner, str line, int state) {
     int size = line.size();
     scanner.state = state & 15;
@@ -30,32 +44,60 @@ pub void scan_diff(SYN_scanner.Scanner scanner, str line, int state) {
         return;
     }
     int byte = line.byte_at(0);
-    if (line.starts_with("diff ") || line.starts_with("index ") || line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("similarity ") || line.starts_with("rename ") || line.starts_with("old mode") || line.starts_with("new mode") || line.starts_with("Binary files")) {
-        scanner.emit(0, size, SYN_class.KEYWORD);
+    if (line.starts_with("diff ")) {
+        scanner.emit(0, 4, SYN_class.FUNCTION);
+        int position = 5;
+        while (position < size) {
+            int stop = word_end(line, position);
+            if (stop > position && line.byte_at(position) != 45) {
+                scanner.emit(position, stop, SYN_class.SPECIAL);
+            }
+            position = stop + 1;
+        }
+        scanner.state = 0;
+        return;
+    }
+    if (line.starts_with("index ")) {
+        scanner.emit(0, 5, SYN_class.KEYWORD);
+        int stop = word_end(line, 6);
+        int dots = line.substr(6, stop).index_of("..").or(-1);
+        if (dots >= 0) {
+            scanner.emit(6, 6 + dots, SYN_class.CONSTANT);
+            scanner.emit(6 + dots + 2, stop, SYN_class.CONSTANT);
+        } else {
+            scanner.emit(6, stop, SYN_class.CONSTANT);
+        }
+        if (stop + 1 < size) {
+            scanner.emit(stop + 1, size, SYN_class.NUMBER);
+        }
+        scanner.state = 0;
+        return;
+    }
+    if (line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("similarity ") || line.starts_with("rename ") || line.starts_with("old mode") || line.starts_with("new mode") || line.starts_with("Binary files") || line.starts_with("copy ") || line.starts_with("dissimilarity ")) {
         scanner.state = 0;
         return;
     }
     if (state == 0 && (line.starts_with("--- ") || line.starts_with("+++ "))) {
-        scanner.emit(0, size, SYN_class.KEYWORD);
+        int class_value = SYN_class.REMOVED;
+        if (byte == 43) {
+            class_value = SYN_class.ADDED;
+        }
+        scanner.emit(0, size, class_value);
+        int stop = word_end(line, 4);
+        scanner.emit(4, stop, SYN_class.SPECIAL);
         return;
     }
     if (byte == 64 && line.starts_with("@@")) {
-        int stop = line.substr(2, size).index_of("@@").or(-1);
-        if (stop >= 0) {
-            scanner.emit(0, stop + 4, SYN_class.ATTRIBUTE);
-            scanner.emit(stop + 4, size, SYN_class.FUNCTION);
-        } else {
-            scanner.emit(0, size, SYN_class.ATTRIBUTE);
-        }
+        scanner.emit(0, size, SYN_class.ATTRIBUTE);
         scanner.state = 1;
         return;
     }
     if (byte == 43 || byte == 62) {
-        scanner.emit(0, size, SYN_class.ADDED);
+        scanner.emit(1, size, SYN_class.ADDED);
         return;
     }
     if (byte == 45 || byte == 60 || byte == 33) {
-        scanner.emit(0, size, SYN_class.REMOVED);
+        scanner.emit(1, size, SYN_class.REMOVED);
         return;
     }
     if (byte == 92) {
@@ -129,49 +171,392 @@ pub void scan_gitrebase(SYN_scanner.Scanner scanner, str line, int state) {
     }
 }
 
-/// YAML: the code scanner, plus block scalars. State 1 in a block scalar,
-/// with the indentation of the line that introduced it in bits 12...
-pub void scan_yaml(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+bool is_digit(int byte) {
+    return byte >= 48 && byte <= 57;
+}
+
+// the class of a plain scalar's text [from, upto): number, boolean / null,
+// or a string
+int yaml_scalar_class(str line, int from, int upto) {
+    int length = upto - from;
+    if (length == 0) {
+        return SYN_class.NORMAL;
+    }
+    str text = line.substr(from, upto);
+    if (text == "true" || text == "false" || text == "True" || text == "False" || text == "TRUE" || text == "FALSE" || text == "null" || text == "Null" || text == "NULL" || text == "~") {
+        return SYN_class.CONSTANT;
+    }
+    int sign = 0;
+    if (text.byte_at(0) == 45 || text.byte_at(0) == 43) {
+        sign = 1;
+    }
+    if (sign < length && text.byte_at(sign) == 46 && text.substr(sign, length).to_lower() != ".") {
+        str rest = text.substr(sign, length).to_lower();
+        if (rest == ".inf" || rest == ".nan") {
+            return SYN_class.NUMBER;
+        }
+    }
+    if (text.starts_with("0x") || text.starts_with("0o")) {
+        return SYN_class.NUMBER;
+    }
+    bool is_number = sign < length;
+    bool is_dot = false;
+    bool is_exp = false;
+    int index = sign;
+    while (index < length) {
+        int byte = text.byte_at(index);
+        if (is_digit(byte)) {
+            index = index + 1;
+        } else if (byte == 46 && !is_dot && !is_exp) {
+            is_dot = true;
+            index = index + 1;
+        } else if ((byte == 101 || byte == 69) && !is_exp && index > sign && index + 1 < length) {
+            is_exp = true;
+            index = index + 1;
+            if (text.byte_at(index) == 45 || text.byte_at(index) == 43) {
+                index = index + 1;
+            }
+        } else {
+            is_number = false;
+            break;
+        }
+    }
+    if (is_number && index == length && (is_digit(text.byte_at(length - 1)) || text.byte_at(length - 1) == 46)) {
+        return SYN_class.NUMBER;
+    }
+    return SYN_class.STRING;
+}
+
+// a quoted scalar starting at `from`: the position after its closing quote
+// (the line end when it does not close here)
+int yaml_quoted_end(str line, int from) {
+    int quote = line.byte_at(from);
+    int index = from + 1;
+    while (index < line.size()) {
+        int byte = line.byte_at(index);
+        if (quote == 34 && byte == 92) {
+            index = index + 2;
+            continue;
+        }
+        if (byte == quote) {
+            if (quote == 39 && index + 1 < line.size() && line.byte_at(index + 1) == 39) {
+                index = index + 2;
+                continue;
+            }
+            return index + 1;
+        }
+        index = index + 1;
+    }
+    return line.size();
+}
+
+// is there a mapping colon (`:` then a blank, `,`, `}` or the end) at `at`?
+bool is_yaml_colon_at(str line, int colon) {
+    if (colon >= line.size() || line.byte_at(colon) != 58) {
+        return false;
+    }
+    if (colon + 1 >= line.size()) {
+        return true;
+    }
+    int next = line.byte_at(colon + 1);
+    return next == 32 || next == 9 || next == 44 || next == 125 || next == 93;
+}
+
+// a flow collection or any value from `from`: classify scalars, strings and
+// keys until the end of the line or a comment
+void yaml_value(SYN_scanner.Scanner scanner, str line, int from, bool is_flow) {
     int size = line.size();
-    if ((state & 15) == 1) {
-        int base = state >> 12;
-        if (is_blank(line) || indent_of(line) > base) {
-            scanner.emit(0, size, SYN_class.STRING);
-            scanner.state = state;
+    int cursor = from;
+    while (cursor < size) {
+        int byte = line.byte_at(cursor);
+        if (is_space(byte) || byte == 44 || byte == 91 || byte == 93 || byte == 123 || byte == 125) {
+            if (!is_flow && (byte == 91 || byte == 123)) {
+                // a flow collection begins: from here on, flow rules
+                yaml_value(scanner, line, cursor, true);
+                return;
+            }
+            cursor = cursor + 1;
+            continue;
+        }
+        if (byte == 35 && (cursor == 0 || is_space(line.byte_at(cursor - 1)))) {
+            scanner.emit(cursor, size, SYN_class.COMMENT);
             return;
         }
-        SYN_code.scan(scanner, lang, line, 0);
-    } else {
-        SYN_code.scan(scanner, lang, line, 0);
+        if (byte == 34 || byte == 39) {
+            int end = yaml_quoted_end(line, cursor);
+            int look = end;
+            while (look < size && is_space(line.byte_at(look))) {
+                look = look + 1;
+            }
+            if (is_flow && is_yaml_colon_at(line, look)) {
+                scanner.emit(cursor, end, SYN_class.PROPERTY);
+            } else {
+                scanner.emit(cursor, end, SYN_class.STRING);
+            }
+            cursor = end;
+            continue;
+        }
+        if (byte == 38 || byte == 42 || byte == 33) {
+            // anchors, aliases and tags: left plain
+            while (cursor < size && !is_space(line.byte_at(cursor)) && line.byte_at(cursor) != 44 && line.byte_at(cursor) != 93 && line.byte_at(cursor) != 125) {
+                cursor = cursor + 1;
+            }
+            continue;
+        }
+        if ((byte == 124 || byte == 62) && !is_flow) {
+            // a block scalar header: handled by the caller
+            cursor = size;
+            continue;
+        }
+        // a plain scalar, or a flow key
+        int stop = cursor;
+        while (stop < size) {
+            int chr = line.byte_at(stop);
+            if (is_flow && (chr == 44 || chr == 93 || chr == 125)) {
+                break;
+            }
+            if (chr == 35 && stop > cursor && is_space(line.byte_at(stop - 1))) {
+                break;
+            }
+            if (is_flow && is_yaml_colon_at(line, stop)) {
+                break;
+            }
+            stop = stop + 1;
+        }
+        int upto = stop;
+        while (upto > cursor && is_space(line.byte_at(upto - 1))) {
+            upto = upto - 1;
+        }
+        if (is_flow && is_yaml_colon_at(line, stop)) {
+            scanner.emit(cursor, upto, SYN_class.PROPERTY);
+            cursor = stop + 1;
+            continue;
+        }
+        scanner.emit(cursor, upto, yaml_scalar_class(line, cursor, upto));
+        cursor = stop;
     }
-    if (scanner.state != 0) {
+}
+
+/// YAML, one line at a time: keys, plain scalars (strings, numbers,
+/// booleans), quoted strings, flow collections, comments and block scalars.
+/// State 1 in a block scalar, with the indentation of the line that
+/// introduced it in bits 12...
+pub void scan_yaml(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    scanner.state = 0;
+    if ((state & 15) == 1 || (state & 15) == 2) {
+        int base = (state >> 4) & 255;
+        if (is_blank(line) || indent_of(line) > base) {
+            if ((state & 15) == 2) {
+                // the body of a `run:` script: shell
+                scanner.inj_lang = "sh";
+                scanner.inj_from = 0;
+                scanner.inj_to = size;
+                scanner.inj_state = state >> 20;
+                scanner.state = state & 0xFFFFF;
+            } else {
+                scanner.emit(0, size, SYN_class.STRING);
+                scanner.state = state;
+            }
+            return;
+        }
+    }
+    int position = indent_of(line);
+    if (position >= size) {
         return;
     }
-    // does the line end in a block scalar indicator?
+    if (line.byte_at(position) == 35) {
+        scanner.emit(position, size, SYN_class.COMMENT);
+        return;
+    }
+    if (line.substr(position, size).starts_with("---") || line.substr(position, size).starts_with("...")) {
+        int after = position + 3;
+        if (after >= size || is_space(line.byte_at(after))) {
+            position = after;
+        }
+    }
+    int base = position;
+    // sequence indicators
+    while (position < size && line.byte_at(position) == 45 && (position + 1 >= size || is_space(line.byte_at(position + 1)))) {
+        position = position + 1;
+        while (position < size && is_space(line.byte_at(position))) {
+            position = position + 1;
+        }
+    }
+    // a key: quoted, or plain up to `: `
+    int key_end = -1;
+    int key_start = position;
+    int key_stop = position;
+    if (position < size) {
+        int byte = line.byte_at(position);
+        if (byte == 34 || byte == 39) {
+            int end = yaml_quoted_end(line, position);
+            int look = end;
+            while (look < size && is_space(line.byte_at(look))) {
+                look = look + 1;
+            }
+            if (is_yaml_colon_at(line, look)) {
+                scanner.emit(position, end, SYN_class.PROPERTY);
+                key_end = look + 1;
+                key_stop = end;
+            }
+        } else if (byte != 91 && byte != 123 && byte != 124 && byte != 62 && byte != 38 && byte != 42 && byte != 33 && byte != 37 && byte != 64 && byte != 96 && byte != 35) {
+            int index = position;
+            while (index < size) {
+                int chr = line.byte_at(index);
+                if (chr == 35 && index > position && is_space(line.byte_at(index - 1))) {
+                    break;
+                }
+                if (is_yaml_colon_at(line, index)) {
+                    int upto = index;
+                    while (upto > position && is_space(line.byte_at(upto - 1))) {
+                        upto = upto - 1;
+                    }
+                    scanner.emit(position, upto, SYN_class.PROPERTY);
+                    key_end = index + 1;
+                    key_stop = upto;
+                    break;
+                }
+                index = index + 1;
+            }
+        }
+    }
+    int value = position;
+    if (key_end >= 0) {
+        value = key_end;
+    }
+    // a block scalar header (`|`, `>-`, `|2+`), possibly after an anchor or tag
+    int probe = value;
+    while (probe < size && is_space(line.byte_at(probe))) {
+        probe = probe + 1;
+    }
+    while (probe < size && (line.byte_at(probe) == 38 || line.byte_at(probe) == 33)) {
+        while (probe < size && !is_space(line.byte_at(probe))) {
+            probe = probe + 1;
+        }
+        while (probe < size && is_space(line.byte_at(probe))) {
+            probe = probe + 1;
+        }
+    }
+    if (probe < size && (line.byte_at(probe) == 124 || line.byte_at(probe) == 62)) {
+        int end = probe + 1;
+        while (end < size && (line.byte_at(end) == 45 || line.byte_at(end) == 43 || is_digit(line.byte_at(end)))) {
+            end = end + 1;
+        }
+        int rest = end;
+        while (rest < size && is_space(line.byte_at(rest))) {
+            rest = rest + 1;
+        }
+        if (rest >= size || line.byte_at(rest) == 35) {
+            if (rest < size) {
+                scanner.emit(rest, size, SYN_class.COMMENT);
+            }
+            if (base > 255) {
+                base = 255;
+            }
+            scanner.state = 1 | (base << 4);
+            if (line.substr(key_start, key_stop) == "run") {
+                scanner.state = 2 | (base << 4) | (SYN_registry.id_of("sh") << 12);
+            }
+            return;
+        }
+    }
+    yaml_value(scanner, line, value, false);
+}
+
+bool is_shell_instruction(str word) {
+    str upper = word.to_upper();
+    return upper == "RUN" || upper == "CMD" || upper == "ENTRYPOINT";
+}
+
+/// A Dockerfile: instructions, and the shell form of RUN / CMD / ENTRYPOINT
+/// (with its `\` continuations) handed to `sh`. State 1: inside such a
+/// continued command.
+pub void scan_dockerfile(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    scanner.state = 0;
+    int id = SYN_registry.id_of("sh");
     int finish = size;
-    while (finish > 0 && is_space(line.byte_at(finish - 1))) {
+    while (finish > 0 && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
         finish = finish - 1;
     }
-    int begin = finish;
-    while (begin > 0 && (line.byte_at(begin - 1) == 45 || line.byte_at(begin - 1) == 43 || (line.byte_at(begin - 1) >= 48 && line.byte_at(begin - 1) <= 57))) {
-        begin = begin - 1;
-    }
-    if (begin > 0 && begin <= finish && (line.byte_at(begin - 1) == 124 || line.byte_at(begin - 1) == 62) && (begin - 1 == 0 || is_space(line.byte_at(begin - 2)))) {
-        // the indicator must not sit inside a comment or a string
-        int covered = 0;
-        int position = 0;
-        while (position + 2 < scanner.spans.size()) {
-            if (scanner.spans[position] <= begin - 1 && scanner.spans[position + 1] > begin - 1) {
-                covered = scanner.spans[position + 2];
-            }
-            position = position + 3;
+    bool is_continued = finish > 0 && line.byte_at(finish - 1) == 92;
+    if ((state & 15) == 1) {
+        scanner.inj_lang = "sh";
+        scanner.inj_from = 0;
+        scanner.inj_to = size;
+        scanner.inj_state = state >> 20;
+        if (is_continued) {
+            scanner.state = 1 | (id << 12);
         }
-        if (covered != SYN_class.COMMENT && covered != SYN_class.STRING) {
-            int base = indent_of(line);
-            if (line.substr(base, size).starts_with("- ")) {
-                base = base + 1;
+        return;
+    }
+    int position = indent_of(line);
+    int stop = position;
+    while (stop < size && ((line.byte_at(stop) >= 65 && line.byte_at(stop) <= 90) || (line.byte_at(stop) >= 97 && line.byte_at(stop) <= 122))) {
+        stop = stop + 1;
+    }
+    if (stop > position && is_shell_instruction(line.substr(position, stop))) {
+        int rest = stop;
+        while (rest < size && is_space(line.byte_at(rest))) {
+            rest = rest + 1;
+        }
+        if (rest < size && line.byte_at(rest) != 91) {
+            scanner.emit(position, stop, SYN_class.KEYWORD);
+            scanner.inj_lang = "sh";
+            scanner.inj_from = rest;
+            scanner.inj_to = size;
+            scanner.inj_state = 0;
+            if (is_continued) {
+                scanner.state = 1 | (id << 12);
             }
-            scanner.state = 1 | (base << 12);
+            return;
         }
     }
+    SYN_code.scan(scanner, lang, line, 0);
+}
+
+/// INI / .conf / .properties: `[section]` titles, `key = value` pairs (the
+/// value is a string, as tree-sitter's ini has it), `;` and `#` comments.
+pub void scan_ini(SYN_scanner.Scanner scanner, str line) {
+    int size = line.size();
+    scanner.state = 0;
+    int start = indent_of(line);
+    int finish = size;
+    while (finish > start && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
+        finish = finish - 1;
+    }
+    if (start >= finish) {
+        return;
+    }
+    int first = line.byte_at(start);
+    if (first == 59 || first == 35) {
+        scanner.emit(start, finish, SYN_class.COMMENT);
+        return;
+    }
+    if (first == 91) {
+        int shut = start + 1;
+        while (shut < finish && line.byte_at(shut) != 93) {
+            shut = shut + 1;
+        }
+        scanner.emit(start + 1, shut, SYN_class.TITLE);
+        return;
+    }
+    int split = start;
+    while (split < finish && line.byte_at(split) != 61) {
+        split = split + 1;
+    }
+    if (split >= finish) {
+        return;
+    }
+    int key_end = split;
+    while (key_end > start && is_space(line.byte_at(key_end - 1))) {
+        key_end = key_end - 1;
+    }
+    scanner.emit(start, key_end, SYN_class.PROPERTY);
+    int value = split + 1;
+    while (value < finish && is_space(line.byte_at(value))) {
+        value = value + 1;
+    }
+    scanner.emit(value, finish, SYN_class.STRING);
 }

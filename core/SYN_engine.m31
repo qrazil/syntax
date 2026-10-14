@@ -9,6 +9,7 @@
 
 import core.SYN_class;
 import core.SYN_code;
+import core.SYN_css;
 import core.SYN_lang;
 import core.SYN_lines;
 import core.SYN_markdown;
@@ -39,6 +40,12 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
         SYN_lines.scan_gitcommit(scanner, line, state);
     } else if (lang.mode == "gitrebase") {
         SYN_lines.scan_gitrebase(scanner, line, state);
+    } else if (lang.mode == "ini") {
+        SYN_lines.scan_ini(scanner, line);
+    } else if (lang.mode == "css") {
+        SYN_css.scan(scanner, lang, line, state);
+    } else if (lang.mode == "dockerfile") {
+        SYN_lines.scan_dockerfile(scanner, lang, line, state);
     } else if (lang.mode == "yaml") {
         SYN_lines.scan_yaml(scanner, lang, line, state);
     } else {
@@ -51,6 +58,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
     int from = scanner.inj_from;
     int stop_at = scanner.inj_to;
     int inner_state = scanner.inj_state;
+    int fill = scanner.inj_fill;
     int host_state = scanner.state;
     List<int> host = scanner.spans;
     scanner.spans = [];
@@ -82,6 +90,31 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
         out.push(host[host_at + 1]);
         out.push(host[host_at + 2]);
         host_at = host_at + 3;
+    }
+    if (fill != 0) {
+        List<int> filled = [];
+        int cursor = from;
+        int read = 0;
+        while (read + 2 < out.size()) {
+            if (out[read] >= from && out[read] < stop_at) {
+                if (out[read] > cursor) {
+                    filled.push(cursor);
+                    filled.push(out[read]);
+                    filled.push(fill);
+                }
+                cursor = out[read + 1];
+            }
+            filled.push(out[read]);
+            filled.push(out[read + 1]);
+            filled.push(out[read + 2]);
+            read = read + 3;
+        }
+        if (cursor < stop_at) {
+            filled.push(cursor);
+            filled.push(stop_at);
+            filled.push(fill);
+        }
+        out = filled;
     }
     scanner.spans = out;
     if (((host_state >> 12) & 255) != 0) {

@@ -37,49 +37,56 @@ numbers moving) and for the disagreements list, not for 100%.
 
 ## Numbers
 
-Big corpus, tokenizer at the first release (12 files per language, up to 48 KB
-each; bytes are the non-whitespace bytes compared):
+Big corpus (12 files per language, up to 48 KB each; bytes are the
+non-whitespace bytes compared), by release. 0.2.0 changed what the tokenizer
+emits where tree-sitter's choices were measurably different (see RENAMES.md):
+`#include` is the import keyword, string escapes and list markers are
+special, a link is all link, `$name` is plain and `$NAME` a constant, shell
+commands are calls, YAML plain scalars are strings, fenced code is raw
+under its language's own tokens, diff headers and hunks follow the diff
+grammar; and CSS, YAML, INI, Dockerfile and markup got scanners of their own.
+It also changed the metric (conceal and `_`-private captures are ignored;
+`variable.member` agrees with plain or MEMBER, `property` with MEMBER).
 
-| language | files | bytes | agreement |
-|---|---:|---:|---:|
-| asm | 12 | 45085 | 84.1% |
-| c | 12 | 32861 | 84.6% |
-| cpp | 12 | 31769 | 90.9% |
-| css | 12 | 16812 | 76.8% |
-| diff | 12 | 59999 | 90.0% |
-| dockerfile | 12 | 13784 | 63.7% |
-| go | 12 | 34589 | 98.7% |
-| html | 12 | 44011 | 81.0% |
-| ini | 11 | 9107 | 83.9% |
-| java | 7 | 36900 | 89.2% |
-| javascript | 12 | 98524 | 56.2% |
-| json | 12 | 97519 | 89.7% |
-| jsonc | 1 | 620 | 90.3% |
-| lua | 12 | 36441 | 89.2% |
-| markdown | 12 | 122783 | 82.1% |
-| python | 12 | 53039 | 97.3% |
-| rust | 12 | 118211 | 94.3% |
-| sh | 11 | 46395 | 75.2% |
-| sql | 4 | 10380 | 87.1% |
-| toml | 12 | 18960 | 97.6% |
-| typescript | 12 | 10262 | 87.6% |
-| vim | 11 | 38544 | 46.1% |
-| xml | 12 | 21732 | 94.1% |
-| yaml | 12 | 36969 | 70.7% |
+| language | files | bytes | 0.1.0 | 0.2.0 |
+|---|---:|---:|---:|---:|
+| asm | 12 | 45085 | 84.1% | 95.86% |
+| c | 12 | 32861 | 84.6% | 89.85% |
+| cpp | 12 | 31769 | 90.9% | 95.03% |
+| css | 12 | 16812 | 76.8% | 98.95% |
+| diff | 12 | 59999 | 90.0% | 99.56% |
+| dockerfile | 12 | 13784 | 63.7% | 67.23% |
+| go | 12 | 34589 | 98.7% | 99.32% |
+| html | 12 | 44011 | 81.0% | 98.92% |
+| ini | 11 | 9107 | 83.9% | 93.17% |
+| java | 7 | 36900 | 89.2% | 88.51% |
+| javascript | 12 | 98524 | 56.2% | 87.81% |
+| json | 12 | 97519 | 89.7% | 100.00% |
+| jsonc | 1 | 620 | 90.3% | 100.00% |
+| lua | 12 | 36441 | 89.2% | 90.15% |
+| markdown | 12 | 122783 | 82.1% | 95.31% |
+| python | 12 | 53039 | 97.3% | 98.80% |
+| rust | 12 | 118211 | 94.3% | 94.47% |
+| sh | 11 | 46395 | 75.2% | 94.83% |
+| sql | 4 | 10380 | 87.1% | 87.12% |
+| toml | 12 | 18960 | 97.6% | 97.64% |
+| typescript | 12 | 10262 | 87.6% | 89.29% |
+| vim | 11 | 38544 | 46.1% | 50.45% |
+| xml | 12 | 21732 | 94.1% | 94.46% |
+| yaml | 12 | 36969 | 70.7% | 97.76% |
 
-(The dockerfile, javascript, vim and yaml numbers are the ones to read the
-disagreement lists for: they are dominated by a few constructs, listed in the
-"Known gaps" below.)
+vim, dockerfile, javascript, sql and typescript are the languages to read the
+disagreement lists for (`report.sh --top 6 --lang vim`):
 
-## Known gaps, from the disagreement lists
+- vim: `syn match name /pattern/` patterns are strings and `syn`/`hi`/`match`
+  commands keywords in tree-sitter's vim; the tokenizer does not parse
+  commands.
+- dockerfile: comment lines inside a multi-line `RUN` are plain there, and
+  heredoc bodies are shell.
+- javascript/typescript: object-literal keys (`{ a: 1 }`), shorthand
+  methods and parameters are `@property`/`@variable.parameter` on a parse,
+  indistinguishable from labels by tokens alone.
+- sql: column and table names are `@property`/`@type` (the tokenizer has no
+  schema), `NULL` and `DEFAULT` are types / attributes.
+- c/cpp: field declarations are `@property`; typedef'd names are `@type`.
 
-- javascript: the corpus is dominated by tree-sitter grammar files and
-  generated parsers; regex literals and `//` inside template strings are the
-  main mismatches.
-- vim: `syn`, `hi`, `match` and `keyword` commands are keywords on tree-sitter's
-  side; the tokenizer's vim keywords are the scripting ones.
-- yaml: `yes`/`no` and block-scalar markers are strings in tree-sitter's yaml.
-- sh: functions called by name (`bad`, `note`) and `$VAR` names are
-  `@function.call`/`@constant` in tree-sitter's bash.
-- c/cpp: member access (`->x`, `.x`) is `@property` there; types declared
-  elsewhere are `@type` (the tokenizer guesses by spelling).

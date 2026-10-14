@@ -4,7 +4,7 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("vim");
-    lang.keywords = "let unlet if elseif else endif for endfor in while endwhile function endfunction function! return call execute echo echom echoerr set setlocal syntax highlight autocmd augroup augroup! command! nnoremap inoremap vnoremap map noremap nmap imap source finish try catch finally endtry throw silent normal runtime import export";
+    lang.keywords = "let unlet if elseif else endif for endfor in while endwhile function endfunction function! return call execute echo echom echoerr set setlocal syntax highlight autocmd augroup augroup! command! nnoremap inoremap vnoremap map noremap nmap imap source finish try catch finally endtry throw silent normal runtime import export syn syntax match keyword region cluster hi highlight link clear sil silent exe exec nnoremap nmap vmap xmap omap imap cmap tnoremap noremenu au aug augroup runtime packadd colorscheme filetype setf setfiletype ino inoremap map noremap com command comclear delcommand delfunction let-unlet lockvar unlockvar wincmd redraw sleep";
     lang.constants = "v:true v:false v:null";
     lang.comment_leader = "\" ";
     lang.has_caps = false;

@@ -4,6 +4,7 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("css");
+    lang.mode = "css";
     lang.word_start = "-";
     lang.word_body = "-";
     lang.attr = "@";

@@ -4,6 +4,7 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("ini");
+    lang.mode = "ini";
     lang.constants = "true false yes no on off";
     lang.comment_leader = "; ";
     lang.has_keys = true;

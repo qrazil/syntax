@@ -1,17 +1,21 @@
-// HTML, XML, Vue and Svelte: tags, attributes, comments, and the
-// raw-text elements <script> and <style>, whose bodies are handed to
-// javascript / typescript / css (an attribute `lang="ts"` or
-// `lang="scss"` picks the dialect).
+// HTML, XML, Vue and Svelte: tags, attributes, comments, entities, the
+// text of a few elements (links, headings, emphasis, code) and the raw-text
+// elements <script> and <style>, whose bodies are handed to javascript /
+// typescript / css (an attribute `lang="ts"` or `lang="scss"` picks the
+// dialect).
 //
-// Own state: kind (bits 0..3), sub (4..7), quote (8..11)
-//   kind 0 text, 1 inside a tag, 2 inside <!-- -->, 3 in a <script> body,
-//   4 in a <style> body, 5 inside <![CDATA[ ]]>
-//   sub  (kind 1) which element opened: 0 other, 1 script, 2 style, 3 a
-//        closing tag; (kinds 3, 4) the dialect: 0 default, 1 ts / scss, 2 less
-//   quote (kind 1) 0, or the quote byte class 1 ", 2 ' of a value that
-//        continues on the next line
-// The injected language's id and state use the bits above, as the engine's
-// injection protocol says.
+// Own state
+//   bits 0..3    kind: 0 text, 1 inside a tag, 2 inside <!-- -->, 3 in a
+//                <script> body, 4 in a <style> body, 5 inside <![CDATA[ ]]>
+//   bits 4..7    in a tag: the element (0 other, 1 script, 2 style, 3 a
+//                closing tag, 4 a, 5 title/h1-h6, 6 b/strong, 7 i/em, 8
+//                code/kbd, 9 s/del); in a script or style body: the dialect
+//   bits 8..9    in a tag: 0, or 1 / 2 when a `"` / `'` value continues on
+//                the next line
+//   bits 12..13  in a tag: the dialect named so far (1 ts / scss, 2 less)
+//   bits 14..17  in a tag or in text: the class of the element's text
+// A script or style body also uses bits 12.. as the engine's injection
+// protocol says (id of the language, then its state).
 
 import core.SYN_class;
 import core.SYN_lang;
@@ -24,6 +28,15 @@ const int K_COMMENT = 2;
 const int K_SCRIPT = 3;
 const int K_STYLE = 4;
 const int K_CDATA = 5;
+const int E_SCRIPT = 1;
+const int E_STYLE = 2;
+const int E_CLOSING = 3;
+const int E_LINK = 4;
+const int E_HEADING = 5;
+const int E_STRONG = 6;
+const int E_EMPHASIS = 7;
+const int E_RAW = 8;
+const int E_STRIKE = 9;
 
 bool is_name_byte(int byte) {
     return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || (byte >= 48 && byte <= 57) || byte == 95 || byte == 45 || byte == 58 || byte == 46 || byte >= 128;
@@ -86,18 +99,95 @@ str inner_name(int kind, int dialect) {
     return "css";
 }
 
+// the element code of the tag name [from, upto)
+int element_of(str line, int from, int upto) {
+    int length = upto - from;
+    if (length == 6 && is_word_at(line, from, "script")) {
+        return E_SCRIPT;
+    }
+    if (length == 5 && is_word_at(line, from, "style")) {
+        return E_STYLE;
+    }
+    if (length == 1) {
+        int byte = lower(line.byte_at(from));
+        if (byte == 97) {
+            return E_LINK;
+        }
+        if (byte == 98) {
+            return E_STRONG;
+        }
+        if (byte == 105) {
+            return E_EMPHASIS;
+        }
+        if (byte == 115) {
+            return E_STRIKE;
+        }
+    }
+    if (length == 2) {
+        if (is_word_at(line, from, "em")) {
+            return E_EMPHASIS;
+        }
+        if (is_word_at(line, from, "h1") || is_word_at(line, from, "h2") || is_word_at(line, from, "h3") || is_word_at(line, from, "h4") || is_word_at(line, from, "h5") || is_word_at(line, from, "h6")) {
+            return E_HEADING;
+        }
+    }
+    if (length == 5 && is_word_at(line, from, "title")) {
+        return E_HEADING;
+    }
+    if (length == 6 && is_word_at(line, from, "strong")) {
+        return E_STRONG;
+    }
+    if (length == 3 && is_word_at(line, from, "del")) {
+        return E_STRIKE;
+    }
+    if (length == 4 && (is_word_at(line, from, "code") || is_word_at(line, from, "kbd"))) {
+        return E_RAW;
+    }
+    if (length == 3 && is_word_at(line, from, "kbd")) {
+        return E_RAW;
+    }
+    return 0;
+}
+
+int text_class_of(int element) {
+    if (element == E_LINK) {
+        return SYN_class.LINK;
+    }
+    if (element == E_HEADING) {
+        return SYN_class.TITLE;
+    }
+    if (element == E_STRONG) {
+        return SYN_class.STRONG;
+    }
+    if (element == E_EMPHASIS) {
+        return SYN_class.EMPHASIS;
+    }
+    if (element == E_RAW) {
+        return SYN_class.RAW;
+    }
+    if (element == E_STRIKE) {
+        return SYN_class.COMMENT;
+    }
+    return 0;
+}
+
 /// Scan one line of markup.
 pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
     int kind = state & 15;
     int sub = (state >> 4) & 15;
-    int quote = (state >> 8) & 15;
+    int quote = (state >> 8) & 3;
     int dialect = 0;
+    int text_class = 0;
     if (kind == K_TAG) {
         dialect = (state >> 12) & 3;
     }
+    if (kind == K_TAG || kind == K_TEXT) {
+        text_class = (state >> 14) & 15;
+    }
     int position = 0;
     bool is_xml = lang.name == "xml";
+    bool is_url_attribute = false;
     scanner.state = 0;
     while (position <= size) {
         if (kind == K_SCRIPT || kind == K_STYLE) {
@@ -126,6 +216,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
             // the closing tag is handled as markup below
             position = stop;
             kind = K_TEXT;
+            text_class = 0;
             scanner.state = 0;
             if (scanner.inj_from >= scanner.inj_to) {
                 scanner.inj_lang = "";
@@ -171,7 +262,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 }
                 if (stop >= size) {
                     scanner.emit(position, size, SYN_class.STRING);
-                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12);
+                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12) | (text_class << 14);
                     return;
                 }
                 scanner.emit(position, stop + 1, SYN_class.STRING);
@@ -183,21 +274,28 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 position = position + 1;
                 continue;
             }
-            if (byte == 62 || (byte == 47 && position + 1 < size && line.byte_at(position + 1) == 62)) {
+            if (byte == 62 || ((byte == 47 || byte == 63) && position + 1 < size && line.byte_at(position + 1) == 62)) {
                 int end = position + 1;
-                if (byte == 47) {
+                if (byte == 47 || byte == 63) {
                     end = position + 2;
                 }
                 scanner.emit(position, end, SYN_class.TAG);
                 position = end;
-                if (byte == 62 && sub == 1 && !is_xml) {
+                if (byte == 62 && sub == E_SCRIPT && !is_xml) {
                     kind = K_SCRIPT;
                     sub = dialect;
-                } else if (byte == 62 && sub == 2 && !is_xml) {
+                    text_class = 0;
+                } else if (byte == 62 && sub == E_STYLE && !is_xml) {
                     kind = K_STYLE;
                     sub = dialect;
+                    text_class = 0;
                 } else {
                     kind = K_TEXT;
+                    if (byte == 62 && sub >= E_LINK && !is_xml) {
+                        text_class = text_class_of(sub);
+                    } else {
+                        text_class = 0;
+                    }
                     sub = 0;
                 }
                 continue;
@@ -213,18 +311,25 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                     if (byte == 39) {
                         quote = 2;
                     }
-                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12);
+                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12) | (text_class << 14);
                     return;
                 }
                 str body = line.substr(position + 1, stop);
-                if (sub == 1 && (body == "ts" || body == "typescript" || body == "text/typescript" || body == "tsx")) {
+                if (sub == E_SCRIPT && (body == "ts" || body == "typescript" || body == "text/typescript" || body == "tsx")) {
                     dialect = 1;
-                } else if (sub == 2 && (body == "scss" || body == "sass")) {
+                } else if (sub == E_STYLE && (body == "scss" || body == "sass")) {
                     dialect = 1;
-                } else if (sub == 2 && body == "less") {
+                } else if (sub == E_STYLE && body == "less") {
                     dialect = 2;
                 }
-                scanner.emit(position, stop + 1, SYN_class.STRING);
+                if (is_url_attribute && stop > position + 1) {
+                    scanner.emit(position, position + 1, SYN_class.STRING);
+                    scanner.emit(position + 1, stop, SYN_class.SPECIAL);
+                    scanner.emit(stop, stop + 1, SYN_class.STRING);
+                } else {
+                    scanner.emit(position, stop + 1, SYN_class.STRING);
+                }
+                is_url_attribute = false;
                 position = stop + 1;
                 continue;
             }
@@ -237,7 +342,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 while (stop < size && (is_name_byte(line.byte_at(stop)) || line.byte_at(stop) == 64)) {
                     stop = stop + 1;
                 }
-                // `lang=ts` / `type=...` selects the dialect on script and style tags
+                is_url_attribute = (stop - position == 4 && is_word_at(line, position, "href")) || (stop - position == 3 && is_word_at(line, position, "src"));
                 scanner.emit(position, stop, SYN_class.ATTRIBUTE);
                 position = stop;
                 continue;
@@ -265,14 +370,33 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 position = position + 9;
                 continue;
             }
-            if (position + 1 < size && (line.byte_at(position + 1) == 33 || line.byte_at(position + 1) == 63)) {
+            if (position + 1 < size && line.byte_at(position + 1) == 33) {
+                // <!DOCTYPE html>
                 int stop = find_text(line, position, ">");
                 int end = size;
                 if (stop >= 0) {
-                    end = position + stop + 1;
+                    end = position + stop;
                 }
-                scanner.emit(position, end, SYN_class.PREPROC);
+                scanner.emit(position, position + 2, SYN_class.TAG);
+                scanner.emit(position + 2, end, SYN_class.CONSTANT);
+                if (stop >= 0) {
+                    scanner.emit(end, end + 1, SYN_class.TAG);
+                    end = end + 1;
+                }
                 position = end;
+                continue;
+            }
+            if (position + 1 < size && line.byte_at(position + 1) == 63) {
+                // <?xml version="1.0"?>: a tag that ends in `?>`
+                int stop = position + 2;
+                while (stop < size && is_name_byte(line.byte_at(stop))) {
+                    stop = stop + 1;
+                }
+                scanner.emit(position, stop, SYN_class.TAG);
+                kind = K_TAG;
+                sub = 0;
+                dialect = 0;
+                position = stop;
                 continue;
             }
             int name = position + 1;
@@ -286,16 +410,13 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 stop = stop + 1;
             }
             if (stop > name) {
-                scanner.emit(position, name, SYN_class.TAG);
-                scanner.emit(name, stop, SYN_class.TAG);
+                scanner.emit(position, stop, SYN_class.TAG);
                 sub = 0;
                 dialect = 0;
                 if (is_closing_tag) {
-                    sub = 3;
-                } else if (is_word_at(line, name, "script") && stop - name == 6) {
-                    sub = 1;
-                } else if (is_word_at(line, name, "style") && stop - name == 5) {
-                    sub = 2;
+                    sub = E_CLOSING;
+                } else {
+                    sub = element_of(line, name, stop);
                 }
                 kind = K_TAG;
                 position = stop;
@@ -315,11 +436,21 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 continue;
             }
         }
-        position = position + 1;
+        // a run of text up to the next tag or entity
+        int run = position + 1;
+        while (run < size && line.byte_at(run) != 60 && line.byte_at(run) != 38) {
+            run = run + 1;
+        }
+        if (text_class != 0) {
+            scanner.emit(position, run, text_class);
+        }
+        position = run;
     }
     if (kind == K_TAG) {
-        scanner.state = K_TAG | (sub << 4) | (dialect << 12);
+        scanner.state = K_TAG | (sub << 4) | (dialect << 12) | (text_class << 14);
     } else if (kind == K_SCRIPT || kind == K_STYLE) {
         scanner.state = kind | (sub << 4);
+    } else if (kind == K_TEXT) {
+        scanner.state = text_class << 14;
     }
 }

@@ -15,6 +15,10 @@ pub SYN_lang.Lang define() {
     lang.str_prefix = "rbfuRBFU";
     lang.comment_leader = "# ";
     lang.indent_style = "colon";
+    lang.has_members = true;
+    lang.has_type_calls = true;
+    lang.has_shebang = true;
+    lang.has_single_caps = true;
     lang.line_comment("#");
     lang.string("\"\"\"", "\"\"\"", "\\", "m");
     lang.string("'''", "'''", "\\", "m");

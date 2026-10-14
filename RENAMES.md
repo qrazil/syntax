@@ -3,6 +3,38 @@
 Renames, moves and removed names, newest first. A release that changes a name
 or a module path adds an entry here.
 
+## 0.2.0
+
+No name or module changed. Behaviour changed where the tree-sitter oracle
+showed the tokenizer disagreeing with a real parser; a consumer that compares
+class numbers (rather than drawing them) should note:
+
+- New class `MEMBER` (24, `variable.member`), emitted for `a.b` / `a->b`
+  fields; it folds to NORMAL with `SYN_class.legacy`. `PUNCTUATION` now folds
+  to SPECIAL (table pipes, block-quote markers, thematic breaks in markdown).
+- `#include` is a KEYWORD (was PREPROC); `#define`, `#ifdef`... stay PREPROC
+  and the macro name after them is a CONSTANT (a CALL for `#define F(x)`).
+- Escapes inside strings (`\n`, `\x41`, `\u{..}`) are SPECIAL.
+- Shell: commands are calls (`echo`, `printf`, `set` and user functions),
+  `export`/`declare`/`local` stay keywords, `$` and lowercase names are
+  plain and `$NAME` is a CONSTANT, redirect targets are SPECIAL, `NAME=value`
+  values are strings, `$(...)` inside a string is code, the shebang is
+  PREPROC.
+- Markdown: ATX headings are TITLE all the way through (the `#` marker is no
+  longer SPECIAL); a link's text and url are both LINK (the url was COMMENT);
+  list markers and task boxes are SPECIAL; fenced code is RAW wherever its own
+  language leaves it plain (fence delimiters are RAW, the info string plain);
+  indented code is RAW; `===` underlines are TITLE.
+- YAML: keys are PROPERTY, plain scalars are STRING, numbers NUMBER,
+  booleans/null CONSTANT; `run:` block scalars are shell.
+- INI: section names are TITLE, values STRING; diff headers, hunks and
+  `+`/`-` lines follow the diff grammar (the leading marker is plain).
+- CSS/SCSS/Less: tags are TAG, classes TYPE, ids CONSTANT, units STRING.
+- HTML: link/heading/emphasis/code text takes its element's class; `href`
+  and `src` values are SPECIAL.
+- JavaScript/TypeScript: regex literals are STRING (they were broken by a
+  quote or backtick inside them).
+
 ## 0.1.0
 
 First version. It replaces `MED_syntax` (the editor) and `TUI_syntax` (tui);

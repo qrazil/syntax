@@ -13,6 +13,8 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "class interface type enum namespace";
     lang.word_start = "$";
     lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.has_regex = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "");
     lang.string("`", "`", "\\", "mi");

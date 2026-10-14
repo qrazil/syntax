@@ -22,6 +22,7 @@ const int TYPE = SYN_class.TYPE;
 const int KEYWORD = SYN_class.KEYWORD;
 const int RAW = SYN_class.RAW;
 const int LINK = SYN_class.LINK;
+const int PUNCTUATION = SYN_class.PUNCTUATION;
 const int EMPHASIS = SYN_class.EMPHASIS;
 const int STRONG = SYN_class.STRONG;
 const int IN_FENCE = 1;
@@ -237,7 +238,7 @@ void markdown_inline(List<int> classes, str line, int from, int stop) {
                 }
                 if (url_end > 0) {
                     paint(classes, index, shut + 1, LINK);
-                    paint(classes, shut + 1, url_end + 1, COMMENT);
+                    paint(classes, shut + 1, url_end + 1, LINK);
                     index = url_end + 1;
                     continue;
                 }
@@ -328,80 +329,138 @@ void markdown_inline(List<int> classes, str line, int from, int stop) {
     }
 }
 
-// The classes of a line outside any fence.
-List<int> line_classes(str line, str trimmed) {
+// The classes of a line outside any fence. `flags` is what the lines above
+// left: 1 the line before was blank, 2 inside a list item, 4 the line before
+// was indented code, 8 the line before was a paragraph line.
+List<int> line_classes(str line, str trimmed, int flags) {
     List<int> classes = [0; line.size()];
+    int size = line.size();
+    int start = 0;
+    while (start < size && (line.byte_at(start) == 32 || line.byte_at(start) == 9)) {
+        start = start + 1;
+    }
+    if (start == size) {
+        return classes;
+    }
+    // an indented code block: four spaces (or a tab), after a blank line or
+    // another code line, outside a list
+    bool is_indented = start >= 4 || (start > 0 && line.byte_at(0) == 9);
+    if (is_indented && ((flags & 1) != 0 || (flags & 4) != 0) && (flags & 2) == 0) {
+        paint(classes, 0, size, RAW);
+        return classes;
+    }
     if (line.starts_with("#")) {
         int hashes = run_end(line, 0, 35);
-        if (hashes <= 6 && (hashes == line.size() || line.byte_at(hashes) == 32)) {
-            paint(classes, 0, line.size(), TITLE);
-            paint(classes, 0, hashes, SPECIAL);
-            markdown_inline(classes, line, hashes, line.size());
+        if (hashes <= 6 && (hashes == size || line.byte_at(hashes) == 32)) {
+            paint(classes, 0, size, TITLE);
+            markdown_inline(classes, line, hashes, size);
             return classes;
         }
     }
-    if (is_rule_line(trimmed) || is_table_delimiter(trimmed)) {
-        paint(classes, 0, line.size(), SPECIAL);
+    // a setext underline of the paragraph line above, or a thematic break
+    if (is_rule_line(trimmed)) {
+        int marker = trimmed.byte_at(0);
+        if ((flags & 8) != 0 && start < 4 && (marker == 61 || (marker == 45 && !trimmed.contains(" ")))) {
+            paint(classes, 0, size, TITLE);
+        } else {
+            paint(classes, 0, size, PUNCTUATION);
+        }
         return classes;
     }
-    int start = 0;
-    while (start < line.size() && (line.byte_at(start) == 32 || line.byte_at(start) == 9)) {
-        start = start + 1;
+    if (is_table_delimiter(trimmed)) {
+        paint(classes, 0, size, PUNCTUATION);
+        return classes;
     }
-    if (start < line.size() && line.byte_at(start) == 62) {
+    if (line.byte_at(start) == 62) {
         int index = start;
-        while (index < line.size() && (line.byte_at(index) == 62 || line.byte_at(index) == 32)) {
+        while (index < size && (line.byte_at(index) == 62 || line.byte_at(index) == 32)) {
             if (line.byte_at(index) == 62) {
-                classes[index] = SPECIAL;
+                classes[index] = PUNCTUATION;
             }
             index = index + 1;
         }
-        paint(classes, index, line.size(), COMMENT);
-        markdown_inline(classes, line, index, line.size());
+        paint(classes, index, size, COMMENT);
+        markdown_inline(classes, line, index, size);
         return classes;
     }
-    if (start < line.size() && (line.byte_at(start) == 45 || line.byte_at(start) == 42 || line.byte_at(start) == 43) && start + 1 < line.size() && line.byte_at(start + 1) == 32) {
+    if ((line.byte_at(start) == 45 || line.byte_at(start) == 42 || line.byte_at(start) == 43) && start + 1 < size && line.byte_at(start + 1) == 32) {
         classes[start] = SPECIAL;
         start = start + 2;
-    } else if (start < line.size() && is_digit_byte(line.byte_at(start))) {
+    } else if (is_digit_byte(line.byte_at(start))) {
         int stop = start;
-        while (stop < line.size() && is_digit_byte(line.byte_at(stop))) {
+        while (stop < size && is_digit_byte(line.byte_at(stop))) {
             stop = stop + 1;
         }
-        if (stop < line.size() && (line.byte_at(stop) == 46 || line.byte_at(stop) == 41) && stop + 1 < line.size() && line.byte_at(stop + 1) == 32) {
+        if (stop < size && (line.byte_at(stop) == 46 || line.byte_at(stop) == 41) && stop + 1 < size && line.byte_at(stop + 1) == 32) {
             paint(classes, start, stop + 1, SPECIAL);
             start = stop + 2;
         }
     }
     // task list box: "- [ ] x" / "- [x] x"
-    if (start + 3 <= line.size() && line.byte_at(start) == 91 && line.byte_at(start + 2) == 93 && (start + 3 == line.size() || line.byte_at(start + 3) == 32)) {
+    if (start + 3 <= size && line.byte_at(start) == 91 && line.byte_at(start + 2) == 93 && (start + 3 == size || line.byte_at(start + 3) == 32)) {
         int mark = line.byte_at(start + 1);
         if (mark == 32 || mark == 120 || mark == 88) {
-            paint(classes, start, start + 3, CONSTANT);
+            paint(classes, start, start + 3, SPECIAL);
             start = start + 3;
         }
     }
-    markdown_inline(classes, line, start, line.size());
+    markdown_inline(classes, line, start, size);
     if (trimmed.starts_with("|")) {
-        for (int index in 0 .. line.size()) {
+        for (int index in 0 .. size) {
             if (line.byte_at(index) == 124 && classes[index] == NORMAL) {
-                classes[index] = SPECIAL;
+                classes[index] = PUNCTUATION;
             }
         }
     }
     return classes;
 }
 
+// the flags the line leaves for the next one (see line_classes)
+int next_flags(str line, str trimmed, int flags) {
+    int size = line.size();
+    if (trimmed.size() == 0) {
+        return (flags & 2) | 1;
+    }
+    int start = 0;
+    while (start < size && (line.byte_at(start) == 32 || line.byte_at(start) == 9)) {
+        start = start + 1;
+    }
+    bool is_indented = start >= 4 || (start > 0 && line.byte_at(0) == 9);
+    if (is_indented && ((flags & 1) != 0 || (flags & 4) != 0) && (flags & 2) == 0) {
+        return 4;
+    }
+    int byte = line.byte_at(start);
+    bool is_item = ((byte == 45 || byte == 42 || byte == 43) && start + 1 < size && line.byte_at(start + 1) == 32);
+    if (!is_item && is_digit_byte(byte)) {
+        int stop = start;
+        while (stop < size && is_digit_byte(line.byte_at(stop))) {
+            stop = stop + 1;
+        }
+        is_item = stop < size && (line.byte_at(stop) == 46 || line.byte_at(stop) == 41) && stop + 1 < size && line.byte_at(stop + 1) == 32;
+    }
+    if (is_item) {
+        return 2;
+    }
+    if (start >= 2 && (flags & 2) != 0) {
+        return 2;
+    }
+    if (byte == 35 || byte == 62 || byte == 124 || is_rule_line(trimmed)) {
+        return 0;
+    }
+    return 8;
+}
+
 /// Scan one markdown line.
 pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
-    int own = state & 4095;
+    int own = state & 15;
+    int flags = (state >> 4) & 15;
     str trimmed = line.trim();
     bool is_fence = is_fence_line(trimmed);
     scanner.state = 0;
     if (own == IN_FENCE) {
         if (is_fence) {
-            scanner.emit(0, size, SPECIAL);
+            scanner.emit(0, size, RAW);
         } else {
             scanner.emit(0, size, RAW);
             scanner.state = IN_FENCE;
@@ -410,13 +469,14 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
     }
     if (own == IN_LANG) {
         if (is_fence) {
-            scanner.emit(0, size, SPECIAL);
+            scanner.emit(0, size, RAW);
             return;
         }
         scanner.inj_lang = SYN_registry.name_of((state >> 12) & 255);
         scanner.inj_from = 0;
         scanner.inj_to = size;
         scanner.inj_state = state >> 20;
+        scanner.inj_fill = RAW;
         scanner.state = IN_LANG | (state & 0xFF000);
         return;
     }
@@ -428,16 +488,16 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
             lead = lead + 1;
         }
         int marks = run_end(line, lead, trimmed.byte_at(0));
-        scanner.emit(lead, marks, SPECIAL);
+        scanner.emit(lead, marks, RAW);
         if (id > 0) {
             scanner.state = IN_LANG | (id << 12);
         } else {
             scanner.state = IN_FENCE;
         }
-        scanner.emit(marks, size, TYPE);
         return;
     }
-    List<int> classes = line_classes(line, trimmed);
+    scanner.state = next_flags(line, trimmed, flags) << 4;
+    List<int> classes = line_classes(line, trimmed, flags);
     int position = 0;
     while (position < size) {
         int stop = position + 1;

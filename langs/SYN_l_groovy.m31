@@ -12,6 +12,7 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "class interface enum trait";
     lang.attr = "@";
     lang.comment_leader = "// ";
+    lang.has_members = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "");
     lang.string("'''", "'''", "\\", "m");

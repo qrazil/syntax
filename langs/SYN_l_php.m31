@@ -14,6 +14,8 @@ pub SYN_lang.Lang define() {
     lang.sigil = "$";
     lang.comment_leader = "// ";
     lang.has_heredoc = true;
+    lang.has_members = true;
+    lang.has_shebang = true;
     lang.line_comment("//");
     lang.line_comment("#");
     lang.block_comment("/*", "*/", "");

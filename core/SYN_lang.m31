@@ -57,6 +57,16 @@ pub type Lang {
     pub str str_prefix = "";
     pub str special_open = "";
     pub bool has_calls = true;
+    pub bool has_members = false;
+    pub bool has_regex = false;
+    pub bool has_commands = false;
+    pub bool has_shebang = false;
+    pub bool has_decl_types = false;
+    pub bool has_capital_types = true;
+    pub bool has_single_caps = false;
+    pub bool has_immediates = false;
+    pub str command_starts = ";|&({`";
+    pub bool has_type_calls = false;
     pub bool has_caps = true;
     pub bool has_keys = false;
     pub bool has_string_keys = false;
@@ -200,6 +210,9 @@ pub Lang Lang.build() {
     }
     for (str open in attr_open) {
         mark_first(open, M_ATTR);
+    }
+    if (has_regex) {
+        mark(47, M_SPECIAL);
     }
     if (has_signed_numbers) {
         mark(45, M_DIGIT);

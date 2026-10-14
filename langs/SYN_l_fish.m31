@@ -8,6 +8,8 @@ pub SYN_lang.Lang define() {
     lang.sigil = "$";
     lang.comment_leader = "# ";
     lang.needs_comment_space = true;
+    lang.has_commands = true;
+    lang.has_shebang = true;
     lang.has_caps = false;
     lang.has_calls = false;
     lang.line_comment("#");

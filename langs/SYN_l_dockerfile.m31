@@ -4,15 +4,17 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("dockerfile");
+    lang.mode = "dockerfile";
     lang.keywords = "FROM RUN CMD LABEL MAINTAINER EXPOSE ENV ADD COPY ENTRYPOINT VOLUME USER WORKDIR ARG ONBUILD STOPSIGNAL HEALTHCHECK SHELL AS";
     lang.sigil = "$";
     lang.comment_leader = "# ";
     lang.is_case_folded = true;
     lang.needs_comment_space = true;
+    lang.has_keys = true;
     lang.has_caps = false;
     lang.has_calls = false;
     lang.line_comment("#");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "i");
     lang.string("'", "'", "\\", "");
     return lang.build();
 }

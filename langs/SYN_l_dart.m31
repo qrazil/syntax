@@ -11,6 +11,8 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "class mixin enum extension typedef";
     lang.attr = "@";
     lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.has_decl_types = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "n");
     lang.string("'''", "'''", "\\", "m");

@@ -12,6 +12,7 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "class trait object enum type given";
     lang.attr = "@";
     lang.comment_leader = "// ";
+    lang.has_members = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "n");
     lang.string("\"\"\"", "\"\"\"", "", "m");

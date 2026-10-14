@@ -13,6 +13,9 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "class";
     lang.word_start = "$";
     lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.has_regex = true;
+    lang.has_shebang = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "");
     lang.string("`", "`", "\\", "mi");

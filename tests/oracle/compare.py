@@ -28,8 +28,12 @@ def from_capture(name):
         return "string.special"
     if pre("string.regexp", "string.regex"):
         return "string"
-    if pre("keyword.directive", "keyword.import", "preproc", "include", "define", "keyword.preproc"):
+    if pre("keyword.directive", "preproc", "include", "define", "keyword.preproc"):
         return "keyword.directive"
+    if pre("markup.list"):
+        return "string.special"
+    if pre("markup.quote", "markup.strikethrough"):
+        return "comment"
     if pre("markup.heading", "text.title"):
         return "markup.heading"
     if pre("markup.link", "text.uri", "text.reference", "string.special.url"):
@@ -77,12 +81,26 @@ def from_capture(name):
 # classes folded together before comparing
 FOLD = {
     "variable": "-", "operator": "-", "punctuation.special": "-", "function": "function",
-    "function.call": "function", "variable.member": "-", "variable.builtin": "-",
-    "tag.delimiter": "-",
+    "function.call": "function", "variable.builtin": "-", "tag.delimiter": "-",
+    # tree-sitter grammars use @property and @variable.member for the same
+    # thing (a field); we emit MEMBER for field access and PROPERTY for keys.
+    # A member on their side agrees with plain or MEMBER on ours (it needs
+    # scope knowledge a tokenizer lacks), a property with PROPERTY or MEMBER.
+    "variable.member": "member?",
 }
+
+# captures that carry no colour at all
+IGNORED = ("conceal", "spell", "nospell", "injection", "markup.heading.marker.conceal")
 
 def fold(c):
     return FOLD.get(c, c)
+
+def agrees(theirs, ours, ours_raw):
+    if theirs == "member?":
+        return ours in ("-", "property")
+    if theirs == "property":
+        return ours_raw == "variable.member"
+    return False
 
 def read_ts(path):
     spans = collections.defaultdict(list)
@@ -95,6 +113,8 @@ def read_ts(path):
             ok = True
             continue
         r, a, b, cap = line.split(" ", 3)
+        if cap.lstrip("@").split(".")[0] in IGNORED or cap.startswith("_"):
+            continue
         spans[int(r)].append((int(a), int(b), from_capture(cap)))
     return spans if ok else None
 
@@ -177,10 +197,18 @@ def main():
                     continue
                 ta, tb = fold(a[i]), fold(b[i])
                 st[1] += 1
-                if ta == tb:
+                if ta == tb or agrees(ta, tb, b[i]):
                     st[0] += 1
                 else:
                     confusion[ours][(ta, tb)] += 1
+            # samples where we classify and tree-sitter does not
+            for sa, sb, c in mine.get(row, []):
+                fc = fold(c)
+                if fc == "-":
+                    continue
+                if all(fold(a[i]) == "-" for i in range(sa, min(sb, len(raw))) if raw[i] not in b" \t"):
+                    word = raw[sa:sb].decode("utf-8", "replace")[:24]
+                    samples[ours][("-", fc)][word] += 1
             # token-level samples of disagreements, by their span starts
             for sa, sb, c in theirs.get(row, []):
                 fc = fold(c)

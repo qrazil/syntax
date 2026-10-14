@@ -21,6 +21,9 @@ pub type Scanner {
     pub int inj_from = 0;
     pub int inj_to = 0;
     pub int inj_state = 0;
+    // the class given to the bytes of the injected range the inner language
+    // leaves NORMAL (a fenced block is RAW all through), 0 for none
+    pub int inj_fill = 0;
 }
 
 /// Forget the spans (the engine does this at the start of every line).
@@ -31,6 +34,7 @@ pub void Scanner.clear() {
     inj_from = 0;
     inj_to = 0;
     inj_state = 0;
+    inj_fill = 0;
 }
 
 /// Record a classified range; empty ranges and NORMAL are dropped.

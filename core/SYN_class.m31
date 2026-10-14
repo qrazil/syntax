@@ -61,7 +61,7 @@ pub const int MEMBER = 24;
 pub const int COUNT = 25;
 const Array<str> NAMES = ["variable", "comment", "string", "number", "keyword", "type", "function", "keyword.directive", "constant", "operator", "string.special", "markup.heading", "property", "tag", "attribute", "punctuation.special", "function.call", "diff.plus", "diff.minus", "markup.link", "markup.italic", "markup.strong", "markup.raw", "variable.builtin", "variable.member"];
 // `legacy` folds a class onto the first twelve.
-const Array<int> LEGACY = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 5, 4, 7, 0, 6, 2, 4, 6, 5, 4, 2, 8, 0];
+const Array<int> LEGACY = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 5, 4, 7, 10, 6, 2, 4, 6, 5, 4, 2, 8, 0];
 
 /// The tree-sitter capture name of a class.
 pub str name_of(int class_value) {
@@ -82,11 +82,20 @@ pub int from_capture(str capture) {
     if (name.starts_with("string.escape") || name.starts_with("string.special") || name.starts_with("character.special")) {
         return SPECIAL;
     }
+    if (name.starts_with("conceal") || name.starts_with("spell") || name.starts_with("nospell")) {
+        return NORMAL;
+    }
     if (name.starts_with("string.regexp") || name.starts_with("string.regex")) {
         return STRING;
     }
-    if (name.starts_with("keyword.directive") || name.starts_with("keyword.import") || name.starts_with("preproc") || name.starts_with("include") || name.starts_with("define") || name.starts_with("keyword.preproc")) {
+    if (name.starts_with("keyword.directive") || name.starts_with("preproc") || name.starts_with("include") || name.starts_with("define") || name.starts_with("keyword.preproc")) {
         return PREPROC;
+    }
+    if (name.starts_with("markup.list")) {
+        return SPECIAL;
+    }
+    if (name.starts_with("markup.quote") || name.starts_with("markup.strikethrough")) {
+        return COMMENT;
     }
     if (name.starts_with("markup.heading") || name == "text.title" || name.starts_with("text.title")) {
         return TITLE;

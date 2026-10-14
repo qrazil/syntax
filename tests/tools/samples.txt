@@ -1,0 +1,333 @@
+%% c
+#include <stdio.h>
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+static const char *name = "hi\n"; // note
+int main(int argc, char **argv) {
+    for (size_t i = 0; i < 10u; i++) { printf("%d\n", i); }
+    struct point p = {0x1F, 'x'};
+    return NULL == p ? -1 : 0;
+}
+%% rust
+use std::collections::HashMap;
+#[derive(Debug, Clone)]
+pub struct Point<'a> { x: &'a i32, name: String }
+impl Point<'_> {
+    pub fn new(x: i32) -> Self { Self { x } }
+}
+let s = r#"raw "q" "#; let c = 'x'; let n = 1_000u64;
+println!("{} {}", self.x, s);
+/* block /* nested */ end */
+%% go
+package main
+import "fmt"
+type Server struct { Addr string }
+func (s *Server) Run(n int) error {
+    ch := make(chan int)
+    defer fmt.Println("done", `raw`)
+    return nil
+}
+%% python
+import os
+@decorator
+class Foo(Base):
+    def method(self, x: int = 1) -> str:
+        """doc
+        string"""
+        return f"{x}" + 'a' # note
+async def run(): await go(None, True)
+%% javascript
+import { a } from "b";
+const f = async (x) => `t ${x}` + 'q'; // c
+class A extends B { static m() { return this.x; } }
+let re = /ab+c/g, n = 0xFF + 1.5e3;
+%% typescript
+interface Foo<T> { readonly a: string; b?: number }
+export type Id = number | undefined;
+enum Color { Red, Green }
+function f(x: Foo<string>): void {}
+%% json
+{"a": [1, -2.5e3, true, null, "s\"q"], "b": {"c": "d"}}
+%% toml
+[package]
+name = "syntax"  # note
+version = "0.1.0"
+list = [1, 2.5, true]
+[[bin]]
+s = """multi
+line"""
+%% yaml
+name: build  # note
+on:
+  push:
+    branches: [ "master" ]
+run: |
+  echo hi
+  make
+key: "v"
+- item: 1
+%% sh
+#!/bin/bash
+set -euo pipefail
+for f in "$@"; do echo "$f" # c
+  x=${HOME:-/tmp}/a
+done
+cat <<EOF
+body $x
+EOF
+echo after
+%% markdown
+# Title
+Some *em* and **strong** and `code` and [link](http://x.org) text.
+- item one
+> quote
+```rust
+fn main() {}
+```
+```
+plain
+```
+%% m31
+import tui.core.TUI_buffer;
+pub int add(int a, int b) { return a + b; } // c
+type Point { int x; str name = "a"; }
+int c = 'x'; List<int> xs = [1, 2];
+%% cpp
+#include <vector>
+namespace a { template <typename T> class Foo : public Bar { std::vector<int> v; }; }
+auto s = R"(raw)"; nullptr; // c
+%% html
+<!DOCTYPE html>
+<html lang="en"><body class="a b">
+<!-- c -->
+<script>
+let x = 1; // c
+</script>
+<style>
+a { color: red; }
+</style>
+<p>t &amp; u</p>
+</body>
+%% css
+/* c */
+.a > b:hover, #id { color: #fff; margin: 10px 0 -2px; font-family: "A", serif; }
+@media (max-width: 600px) { a { b: url(x.png) } }
+%% diff
+diff --git a/x b/x
+index 1..2 100644
+--- a/x
++++ b/x
+@@ -1,3 +1,3 @@ fn
+ ctx
+-old
++new
+%% java
+package a.b;
+import java.util.List;
+@Override
+public class Foo<T> extends Bar implements Baz {
+    private final int x = 0;
+    public static void main(String[] args) { System.out.println("hi"); }
+}
+%% sql
+SELECT a, count(*) FROM t WHERE b = 'x' AND c > 10 -- note
+GROUP BY a;
+/* block */ insert into t values (1, 'it''s');
+%% lua
+-- note
+local function f(a, b)
+  return a .. "s" + 1
+end
+--[[ long
+comment ]]
+local s = [==[x]==]
+%% dockerfile
+FROM alpine:3.19 AS build
+RUN echo "$X" && make # c
+ENV A=1
+%% csharp
+using System;
+namespace App { public class Foo : Bar { private int _x = 0; // c
+    public async Task<int> Run(string s) { return await Task.FromResult(42); } } }
+string t = $"a {1}" + @"verbatim";
+%% kotlin
+package a.b
+import kotlin.math.max
+data class Point(val x: Int, var y: Int = 0)
+fun main(args: Array<String>) { println("hi ${args.size}") } // c
+%% swift
+import Foundation
+struct Point { var x: Int; let name: String? }
+func run(_ n: Int) -> Bool { guard n > 0 else { return false }; return true }
+%% php
+<?php
+namespace App;
+class Foo extends Bar { public function run($x) { return $this->y . "s $x"; } }
+// c
+%% ruby
+require 'json'
+class Foo < Bar
+  def run(x, y = 1) # c
+    puts "a #{x}" if x.nil?
+  end
+end
+%% lua
+local t = { a = 1, b = "x" }
+function M.run(self, n) return #t + n end
+%% perl
+use strict;
+my $x = 5; my @a = (1, 2);
+sub run { my ($n) = @_; print "n=$n\n"; return $n + 1; } # c
+%% r
+x <- c(1, 2, 3) # c
+f <- function(a, b = 2) { if (a > b) TRUE else NULL }
+%% dart
+import 'package:a/a.dart';
+class Foo extends Bar { final int x; Foo(this.x); void run() { print('hi $x'); } }
+%% scala
+package a
+object Main extends App { val x: Int = 1; def run(n: Int): Unit = println(s"n") } // c
+%% groovy
+def x = 1
+class Foo { String name; def run() { println "hi ${name}" } }
+%% haskell
+module Main where
+import Data.List (sort)
+main :: IO ()
+main = print (sort [3, 1, 2]) -- c
+{- block -}
+%% elixir
+defmodule Foo do
+  def run(x), do: x + 1 # c
+  @doc "doc"
+end
+%% erlang
+-module(foo).
+run(X) -> X + 1. % c
+%% clojure
+(ns foo.core (:require [a.b :as b]))
+(defn run [x] (+ x 1)) ; c
+%% ocaml
+let rec fact n = if n <= 1 then 1 else n * fact (n - 1) (* c *)
+type t = A | B of int
+%% fsharp
+module M
+let run x = x + 1 // c
+type P = { X: int }
+%% zig
+const std = @import("std");
+pub fn main() !void { std.debug.print("hi {}\n", .{1}); } // c
+%% nim
+proc run(n: int): int = n + 1 # c
+type P = object
+  x: int
+%% julia
+function run(n::Int)
+    return n + 1 # c
+end
+struct P x::Int end
+%% scss
+$color: #fff;
+.a { &:hover { color: $color; margin: 10px; } } // c
+%% less
+@c: #fff;
+.a { .mixin(); color: @c; } // c
+%% cmake
+cmake_minimum_required(VERSION 3.10)
+project(foo C)
+add_executable(foo main.c) # c
+set(X "a ${Y}")
+%% makefile
+CC := gcc
+all: main.o
+	$(CC) -o $@ $< # c
+.PHONY: all
+ifeq ($(X),1)
+endif
+%% nix
+{ pkgs ? import <nixpkgs> {} }: # c
+let x = 1; in pkgs.mkShell { buildInputs = [ pkgs.git ]; shell = "${x}"; }
+%% powershell
+function Get-Foo { param($x) Write-Host "hi $x" } # c
+$a = @(1, 2)
+%% bat
+@echo off
+REM c
+set X=1
+if exist a.txt goto end
+%% fish
+function run
+    echo "hi $argv" # c
+end
+%% vim
+" comment
+let g:x = 1
+function! Run() abort
+  echo 'hi'
+endfunction
+%% awk
+BEGIN { n = 0 } # c
+/foo/ { n++; print $1, "x" } END { print n }
+%% hcl
+resource "aws_instance" "a" { # c
+  ami = "x"
+  count = 2
+}
+%% protobuf
+syntax = "proto3";
+message Foo { string name = 1; repeated int32 ids = 2; } // c
+%% graphql
+type Query { user(id: ID!): User } # c
+query Q($id: ID!) { user(id: $id) { name } }
+%% xml
+<?xml version="1.0" encoding="UTF-8"?>
+<a b="c"><!-- c --><d>t &amp; u</d><![CDATA[x]]></a>
+%% vue
+<template><div class="a">{{ x }}</div></template>
+<script lang="ts">
+export default { name: "a" }; // c
+</script>
+<style scoped>
+.a { color: red; }
+</style>
+%% svelte
+<script>
+  let n = 0; // c
+</script>
+<button on:click={() => n++}>{n}</button>
+%% gitcommit
+Fix the thing
+
+Signed-off-by: A B <a@b.c>
+# comment
+%% gitrebase
+pick abc1234 first change
+squash def5678 second change
+# comment
+%% gitignore
+# comment
+/target/
+*.log
+%% ini
+; comment
+[section]
+key = value
+%% csv
+a,"b c",1,2.5
+%% latex
+\\documentclass{article} % c
+\\begin{document} $x^2$ \\end{document}
+%% asm
+.globl main
+main: mov $0, %eax # c
+  ret
+%% jsonc
+{ // c
+  "a": 1, /* b */ "c": [true, null]
+}
+%% gomod
+module example.com/m // c
+go 1.21
+require a.b/c v1.2.3
+%% nginx
+server { listen 80; # c
+  server_name "a"; }

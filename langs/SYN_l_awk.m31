@@ -7,6 +7,7 @@ pub SYN_lang.Lang define() {
     lang.keywords = "BEGIN END if else while for do break continue next nextfile exit return function func delete in getline printf print";
     lang.builtins = "length substr index split sub gsub match sprintf sin cos atan2 exp log sqrt int rand srand tolower toupper system close fflush";
     lang.comment_leader = "# ";
+    lang.has_shebang = true;
     lang.has_caps = false;
     lang.line_comment("#");
     lang.string("\"", "\"", "\\", "");

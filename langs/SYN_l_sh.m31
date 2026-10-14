@@ -4,17 +4,20 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("sh");
-    lang.keywords = "if then else elif fi for while until do done case esac in function select time return break continue exit export local readonly declare typeset set unset shift source alias unalias eval exec trap cd test echo printf";
-    lang.builtins = "echo printf read cd pwd ls cat grep sed awk find sort uniq wc head tail cut tr xargs mkdir rm cp mv chmod chown ln touch kill ps curl wget tar git make";
+    lang.keywords = "if then else elif fi case in esac for do done select until while declare typeset readonly local unset export function";
+    lang.constants = "true false";
+    lang.decl_fn = "function";
     lang.sigil = "$";
     lang.comment_leader = "# ";
     lang.indent_style = "keyword";
     lang.needs_comment_space = true;
     lang.has_heredoc = true;
+    lang.has_commands = true;
+    lang.has_shebang = true;
     lang.has_caps = false;
     lang.has_calls = false;
     lang.line_comment("#");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "i");
     lang.string("'", "'", "", "m");
     return lang.build();
 }

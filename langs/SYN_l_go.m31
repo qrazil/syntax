@@ -11,6 +11,7 @@ pub SYN_lang.Lang define() {
     lang.decl_fn = "func";
     lang.decl_type = "type";
     lang.comment_leader = "// ";
+    lang.has_members = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "");
     lang.string("`", "`", "", "m");
