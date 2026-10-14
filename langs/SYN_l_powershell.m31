@@ -17,7 +17,7 @@ pub SYN_lang.Lang define() {
     lang.block_comment("<#", "#>", "");
     lang.string("@\"", "\"@", "`", "m");
     lang.string("@'", "'@", "", "m");
-    lang.string("\"", "\"", "`", "");
-    lang.string("'", "'", "doubled", "");
+    lang.string("\"", "\"", "`", "m");
+    lang.string("'", "'", "doubled", "m");
     return lang.build();
 }

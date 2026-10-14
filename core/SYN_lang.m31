@@ -62,6 +62,9 @@ pub type Lang {
     pub bool has_commands = false;
     pub bool has_shebang = false;
     pub bool has_decl_types = false;
+    pub bool has_jsdoc = false;
+    pub bool has_object_keys = false;
+    pub bool has_arrow_keys = false;
     pub bool has_capital_types = true;
     pub bool has_single_caps = false;
     pub bool has_immediates = false;

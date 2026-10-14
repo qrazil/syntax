@@ -15,6 +15,8 @@ pub SYN_lang.Lang define() {
     lang.comment_leader = "// ";
     lang.has_members = true;
     lang.has_regex = true;
+    lang.has_jsdoc = true;
+    lang.has_arrow_keys = true;
     lang.line_comment("//");
     lang.block_comment("/*", "*/", "");
     lang.string("`", "`", "\\", "mi");

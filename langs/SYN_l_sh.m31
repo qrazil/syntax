@@ -17,7 +17,7 @@ pub SYN_lang.Lang define() {
     lang.has_caps = false;
     lang.has_calls = false;
     lang.line_comment("#");
-    lang.string("\"", "\"", "\\", "i");
+    lang.string("\"", "\"", "\\", "im");
     lang.string("'", "'", "", "m");
     return lang.build();
 }

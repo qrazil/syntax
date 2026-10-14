@@ -237,12 +237,17 @@ project(foo C)
 add_executable(foo main.c) # c
 set(X "a ${Y}")
 %% makefile
-CC := gcc
-all: main.o
-	$(CC) -o $@ $< # c
-.PHONY: all
+CC := gcc -O2 # c
+all: main.o util.o
+	@$(CC) -o $@ $^ && echo "done"
+.PHONY: all clean
 ifeq ($(X),1)
 endif
+OBJ = a.o \
+  b.o
+clean:
+	rm -f *.o \
+	  main
 %% nix
 { pkgs ? import <nixpkgs> {} }: # c
 let x = 1; in pkgs.mkShell { buildInputs = [ pkgs.git ]; shell = "${x}"; }

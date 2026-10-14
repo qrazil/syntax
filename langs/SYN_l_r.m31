@@ -13,8 +13,8 @@ pub SYN_lang.Lang define() {
     lang.has_shebang = true;
     lang.has_caps = false;
     lang.line_comment("#");
-    lang.string("\"", "\"", "\\", "");
-    lang.string("'", "'", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
+    lang.string("'", "'", "\\", "m");
     lang.string("`", "`", "\\", "");
     return lang.build();
 }

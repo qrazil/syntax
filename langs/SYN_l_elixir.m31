@@ -14,7 +14,7 @@ pub SYN_lang.Lang define() {
     lang.line_comment("#");
     lang.string("\"\"\"", "\"\"\"", "\\", "m");
     lang.string("'''", "'''", "\\", "m");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
     lang.string("'", "'", "\\", "");
     return lang.build();
 }

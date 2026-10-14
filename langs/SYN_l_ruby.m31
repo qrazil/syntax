@@ -18,8 +18,8 @@ pub SYN_lang.Lang define() {
     lang.has_shebang = true;
     lang.line_comment("#");
     lang.block_comment("=begin", "=end", "");
-    lang.string("\"", "\"", "\\", "");
-    lang.string("'", "'", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
+    lang.string("'", "'", "\\", "m");
     lang.string("`", "`", "\\", "");
     return lang.build();
 }

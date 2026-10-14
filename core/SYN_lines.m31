@@ -560,3 +560,275 @@ pub void scan_ini(SYN_scanner.Scanner scanner, str line) {
     }
     scanner.emit(value, finish, SYN_class.STRING);
 }
+
+// the end of a Vim syntax pattern that starts with its delimiter at `from`
+int vim_pattern_end(str line, int from) {
+    int delimiter = line.byte_at(from);
+    int position = from + 1;
+    while (position < line.size()) {
+        int byte = line.byte_at(position);
+        if (byte == 92) {
+            position = position + 2;
+            continue;
+        }
+        if (byte == delimiter) {
+            return position + 1;
+        }
+        position = position + 1;
+    }
+    return line.size();
+}
+
+/// A Vim script `syn[tax]` or `hi[ghlight]` line, as tree-sitter's vim reads
+/// it: the command and its sub-commands are keywords, the group names types,
+/// keyword lists and patterns strings, highlight attributes properties and
+/// their values constants. Other lines are left to the code scanner.
+pub bool is_vim_command_scanned(SYN_scanner.Scanner scanner, str line) {
+    int size = line.size();
+    int position = indent_of(line);
+    int stop = word_end(line, position);
+    str command = line.substr(position, stop);
+    bool is_syntax = command == "syn" || command == "syntax";
+    bool is_highlight = command == "hi" || command == "highlight" || command == "hig" || command == "high";
+    if (!is_syntax && !is_highlight) {
+        return false;
+    }
+    scanner.emit(position, stop, SYN_class.KEYWORD);
+    position = stop;
+    int index = 0;
+    bool is_words = false;
+    while (position < size) {
+        while (position < size && is_space(line.byte_at(position))) {
+            position = position + 1;
+        }
+        if (position >= size) {
+            break;
+        }
+        int byte = line.byte_at(position);
+        if (byte == 34 && index > 0) {
+            scanner.emit(position, size, SYN_class.COMMENT);
+            return true;
+        }
+        stop = word_end(line, position);
+        int equals = line.substr(position, stop).index_of("=").or(-1);
+        if (equals > 0) {
+            // name=value
+            if (is_highlight) {
+                scanner.emit(position, position + equals, SYN_class.PROPERTY);
+                scanner.emit(position + equals + 1, stop, SYN_class.CONSTANT);
+            } else {
+                scanner.emit(position, position + equals, SYN_class.KEYWORD);
+                int value = position + equals + 1;
+                if (value < size && !is_space(line.byte_at(value)) && !is_alphabetic(line.byte_at(value)) && line.byte_at(value) != 64) {
+                    int end = vim_pattern_end(line, value);
+                    scanner.emit(value, end, SYN_class.STRING);
+                    stop = end;
+                }
+            }
+            position = stop;
+            index = index + 1;
+            continue;
+        }
+        str word = line.substr(position, stop);
+        if (is_syntax && index == 0) {
+            scanner.emit(position, stop, SYN_class.KEYWORD);
+            is_words = word == "keyword";
+        } else if (is_highlight && (word == "default" || word == "link" || word == "clear" || word == "def")) {
+            scanner.emit(position, stop, SYN_class.KEYWORD);
+        } else if (index == 1 || (is_highlight && index <= 3)) {
+            scanner.emit(position, stop, SYN_class.TYPE);
+        } else if (is_syntax && word == "contained") {
+            scanner.emit(position, stop, SYN_class.KEYWORD);
+        } else if (is_syntax && !is_alphabetic(byte)) {
+            int end = vim_pattern_end(line, position);
+            scanner.emit(position, end, SYN_class.STRING);
+            stop = end;
+        } else if (is_syntax && is_words) {
+            scanner.emit(position, stop, SYN_class.STRING);
+        }
+        position = stop;
+        index = index + 1;
+    }
+    return true;
+}
+
+bool is_alphabetic(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128;
+}
+
+// Scan the rest of a line [from, size) with the code scanner and add its
+// spans, shifted, to the scanner's.
+void scan_rest(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int from) {
+    if (from >= line.size()) {
+        return;
+    }
+    List<int> saved = scanner.spans;
+    scanner.spans = [];
+    SYN_code.scan(scanner, lang, line.substr(from, line.size()), 0);
+    List<int> inside = scanner.spans;
+    scanner.spans = saved;
+    int index = 0;
+    while (index + 2 < inside.size()) {
+        scanner.emit(inside[index] + from, inside[index + 1] + from, inside[index + 2]);
+        index = index + 3;
+    }
+    scanner.state = 0;
+}
+
+// the position of an assignment operator (`=`, `:=`, `::=`, `?=`, `+=`,
+// `!=`) in a makefile line, as (start of the operator << 8) | its length,
+// or -1; a `:` that starts a rule comes first
+int make_assignment(str line, int from) {
+    int index = from;
+    while (index < line.size()) {
+        int byte = line.byte_at(index);
+        if (byte == 35) {
+            return -1;
+        }
+        if (byte == 36 && index + 1 < line.size() && (line.byte_at(index + 1) == 40 || line.byte_at(index + 1) == 123)) {
+            int closer = 41;
+            if (line.byte_at(index + 1) == 123) {
+                closer = 125;
+            }
+            int depth = 0;
+            while (index < line.size()) {
+                if (line.byte_at(index) == 40 || line.byte_at(index) == 123) {
+                    depth = depth + 1;
+                } else if (line.byte_at(index) == closer) {
+                    depth = depth - 1;
+                    if (depth == 0) {
+                        break;
+                    }
+                }
+                index = index + 1;
+            }
+            index = index + 1;
+            continue;
+        }
+        if (byte == 61) {
+            int start = index;
+            int length = 1;
+            if (index > from && (line.byte_at(index - 1) == 58 || line.byte_at(index - 1) == 63 || line.byte_at(index - 1) == 43 || line.byte_at(index - 1) == 33)) {
+                start = index - 1;
+                length = 2;
+                if (start > from && line.byte_at(start - 1) == 58) {
+                    start = start - 1;
+                    length = 3;
+                }
+            }
+            return (start << 8) | length;
+        }
+        if (byte == 58) {
+            // `target: prerequisites`, unless it is `:=` / `::=`
+            if (index + 1 < line.size() && (line.byte_at(index + 1) == 61 || (line.byte_at(index + 1) == 58 && index + 2 < line.size() && line.byte_at(index + 2) == 61))) {
+                index = index + 1;
+                continue;
+            }
+            return -1;
+        }
+        index = index + 1;
+    }
+    return -1;
+}
+
+/// A makefile: variables, rule targets, `#` comments, and recipe lines (a
+/// tab, then shell) handed to `sh`. State 1: a recipe line continued with `\`.
+pub void scan_makefile(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    scanner.state = 0;
+    int finish = size;
+    while (finish > 0 && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
+        finish = finish - 1;
+    }
+    bool is_continued = finish > 0 && line.byte_at(finish - 1) == 92;
+    int id = SYN_registry.id_of("sh");
+    if ((state & 15) == 1 || (size > 0 && line.byte_at(0) == 9)) {
+        int from = 0;
+        if (size > 0 && line.byte_at(0) == 9 && (state & 15) != 1) {
+            from = 1;
+            // the `@`, `-` and `+` prefixes that quiet or ignore a command
+            while (from < size && (line.byte_at(from) == 64 || line.byte_at(from) == 45 || line.byte_at(from) == 43)) {
+                from = from + 1;
+            }
+        }
+        scanner.inj_lang = "sh";
+        scanner.inj_from = from;
+        scanner.inj_to = size;
+        if ((state & 15) == 1) {
+            scanner.inj_state = state >> 20;
+        }
+        if (is_continued) {
+            scanner.state = 1 | (id << 12);
+        }
+        return;
+    }
+    int start = indent_of(line);
+    if (start >= size) {
+        return;
+    }
+    if (line.byte_at(start) == 35) {
+        scanner.emit(start, size, SYN_class.COMMENT);
+        return;
+    }
+    // directives and includes are plain code
+    int word = word_end(line, start);
+    str first = line.substr(start, word);
+    if (first == "ifeq" || first == "ifneq" || first == "ifdef" || first == "ifndef" || first == "else" || first == "endif" || first == "include" || first == "-include" || first == "sinclude" || first == "define" || first == "endef" || first == "export" || first == "unexport" || first == "override" || first == "vpath" || first == "private") {
+        SYN_code.scan(scanner, lang, line, 0);
+        return;
+    }
+    int assignment = make_assignment(line, start);
+    if (assignment >= 0) {
+        int operator_at = assignment >> 8;
+        int name_end = operator_at;
+        while (name_end > start && is_space(line.byte_at(name_end - 1))) {
+            name_end = name_end - 1;
+        }
+        scanner.emit(start, name_end, SYN_class.PROPERTY);
+        scan_rest(scanner, lang, line, operator_at + (assignment & 255));
+        return;
+    }
+    // a rule: targets, `:`, prerequisites
+    int colon = start;
+    int depth = 0;
+    while (colon < size) {
+        int byte = line.byte_at(colon);
+        if (byte == 36 && colon + 1 < size && (line.byte_at(colon + 1) == 40 || line.byte_at(colon + 1) == 123)) {
+            depth = depth + 1;
+            colon = colon + 2;
+            continue;
+        }
+        if ((byte == 41 || byte == 125) && depth > 0) {
+            depth = depth - 1;
+        } else if (byte == 58 && depth == 0) {
+            break;
+        } else if (byte == 35) {
+            colon = size;
+            break;
+        }
+        colon = colon + 1;
+    }
+    if (colon < size) {
+        int position = start;
+        while (position < colon) {
+            while (position < colon && is_space(line.byte_at(position))) {
+                position = position + 1;
+            }
+            int stop = position;
+            while (stop < colon && !is_space(line.byte_at(stop))) {
+                stop = stop + 1;
+            }
+            if (stop > position) {
+                if (line.byte_at(position) == 46) {
+                    scanner.emit(position, stop, SYN_class.CALL);
+                } else {
+                    scanner.emit(position, stop, SYN_class.FUNCTION);
+                }
+            }
+            position = stop;
+        }
+        scan_rest(scanner, lang, line, colon + 1);
+        return;
+    }
+    SYN_code.scan(scanner, lang, line, 0);
+}

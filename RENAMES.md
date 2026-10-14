@@ -3,6 +3,24 @@
 Renames, moves and removed names, newest first. A release that changes a name
 or a module path adds an entry here.
 
+## 0.3.0
+
+No name or module changed. Added and changed behaviour, again from the oracle:
+
+- A Makefile is scanned as one: `NAME :=` is a PROPERTY, rule targets
+  FUNCTION (special targets CALL), recipe lines are shell.
+- Vim script `syn`/`hi` lines: group names TYPE, keyword lists and patterns
+  STRING, attributes PROPERTY with CONSTANT values.
+- JavaScript/TypeScript: `key:` in an object literal is a PROPERTY, and
+  FUNCTION when its value is a function or arrow; `@tag` and `{Type}` in
+  `/** */` comments are KEYWORD and TYPE.
+- Rust: `#[derive(Debug)]` highlights its names (CALL, TYPE) and leaves the
+  brackets plain; `crate` and `super` are plain; a `"` string may span lines.
+  Strings span lines in ruby, php, perl, ocaml, fsharp, nix, powershell, r,
+  fish, elixir, erlang, cmake and sh as well.
+- A shell command continued with a trailing backslash does not make the next
+  line's first word a command.
+
 ## 0.2.0
 
 No name or module changed. Behaviour changed where the tree-sitter oracle

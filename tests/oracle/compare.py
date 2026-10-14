@@ -115,7 +115,13 @@ def read_ts(path):
         r, a, b, cap = line.split(" ", 3)
         if cap.lstrip("@").split(".")[0] in IGNORED or cap.startswith("_"):
             continue
-        spans[int(r)].append((int(a), int(b), from_capture(cap)))
+        cls = from_capture(cap)
+        # the `comment` parser injected into comments paints the whole range
+        # @variable over the comment capture: not a highlight
+        if cls == "variable" and spans[int(r)] and spans[int(r)][-1][:2] == (int(a), int(b)) \
+                and spans[int(r)][-1][2] == "comment":
+            continue
+        spans[int(r)].append((int(a), int(b), cls))
     return spans if ok else None
 
 def read_ours(text):

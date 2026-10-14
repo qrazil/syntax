@@ -1,0 +1,61 @@
+// No input may trap: every language is fed random lines built from the
+// bytes that begin or end constructs (quotes, comment openers, sigils,
+// brackets, multi-byte characters), with state carried from line to line,
+// and the same lines are re-walked incrementally. A trap would end the
+// test, so the summary line is the check.
+
+import core.SYN_highlight;
+import core.SYN_registry;
+import tests.SYN_check;
+
+SYN_check.Check check = SYN_check.Check();
+
+const Array<str> PIECES = ["\"", "'", "`", "/*", "*/", "//", "#", "--", "<!--", "-->", "<", ">", "</", "/>", "{", "}", "(", ")", "[", "]", "$", "${", "$(", "@", "%", "=", ":", ";", ",", ".", "\\", "\\n", "\\u{", "0x", "1.5e", "r#\"", "\"#", "<<EOF", "EOF", "```", "~~~", "|", "&", "*", "**", "_", "-", "+", "!", "?", "é", "漢", "😀", "\t", " ", "  ", "a", "foo", "Foo", "FOO", "if", "else", "def", "fn", "class", "return", "true", "null", "<script>", "</script>", "<style>", "</style>", "<a href=", "[x](", "---", "===", "@@ -1 +1 @@", "+", "- ", "1. ", "> ", "\\x4", "\\0", "#[", "]]", "[[", "=begin", "=end", "(*", "*)", "{-", "-}", "|}", "{|", "<?php", "?>", "syn ", "syntax keyword ", "match ", "hi ", "link ", "ENV ", "RUN ", "FROM ", "run: |", "key: ", "diff --git ", "index ", "pick ", "[sec]", "{{", "}}", "\\é", "\\漢", "é\"", "\"é", "漢'", "$é", "${é}", "#é", "/é/", "@é", "<é>", "&é;", "\n\n", "REM ", "::", "% ", "; ", "!important", "var(--x)", "10px", "#fff"];
+
+type Random {
+    int seed = 12345;
+}
+
+int Random.next(int bound) {
+    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+    return (seed >> 8) % bound;
+}
+
+List<str> make_lines(int count, Random random) {
+    List<str> lines = [];
+    for (int row in 0 .. count) {
+        str line = "";
+        int parts = random.next(14);
+        for (int part in 0 .. parts) {
+            line = line + PIECES[random.next(PIECES.size())];
+        }
+        lines.push(line);
+    }
+    return lines;
+}
+
+List<str> lines = make_lines(1500, Random());
+int checked = 0;
+for (str name in SYN_registry.names()) {
+    SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: name);
+    highlighter.set_lines(lines);
+    for (int row in 0 .. lines.size()) {
+        List<int> classes = highlighter.classes(row);
+        if (classes.size() != lines[row].size()) {
+            check.ok(name + ": one class per byte at row " + str(row), false);
+        }
+        checked = checked + 1;
+    }
+    // edit in the middle and at the top: the incremental walk must also hold
+    lines[7] = lines[7] + "\"" + "/*";
+    highlighter.update(7, lines);
+    lines.insert(3, "<script>`");
+    highlighter.update(3, lines);
+    lines.remove_at(3);
+    highlighter.update(3, lines);
+    for (int row in 0 .. lines.size()) {
+        highlighter.classes(row);
+    }
+}
+check.ok("lines checked", checked > 90000);
+check.finish();

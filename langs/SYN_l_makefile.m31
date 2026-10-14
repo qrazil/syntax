@@ -4,6 +4,7 @@ import core.SYN_lang;
 
 pub SYN_lang.Lang define() {
     SYN_lang.Lang lang = SYN_lang.Lang("makefile");
+    lang.mode = "makefile";
     lang.keywords = "ifeq ifneq ifdef ifndef else endif include sinclude -include define endef export unexport override vpath";
     lang.builtins = "subst patsubst strip findstring filter filter-out sort word wordlist words firstword lastword dir notdir suffix basename addsuffix addprefix join wildcard realpath abspath if or and foreach call value eval origin flavor shell error warning info";
     lang.sigil = "$";

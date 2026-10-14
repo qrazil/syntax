@@ -48,34 +48,44 @@ grammar; and CSS, YAML, INI, Dockerfile and markup got scanners of their own.
 It also changed the metric (conceal and `_`-private captures are ignored;
 `variable.member` agrees with plain or MEMBER, `property` with MEMBER).
 
-| language | files | bytes | 0.1.0 | 0.2.0 |
-|---|---:|---:|---:|---:|
-| asm | 12 | 45085 | 84.1% | 95.86% |
-| c | 12 | 32861 | 84.6% | 89.85% |
-| cpp | 12 | 31769 | 90.9% | 95.03% |
-| css | 12 | 16812 | 76.8% | 98.95% |
-| diff | 12 | 59999 | 90.0% | 99.56% |
-| dockerfile | 12 | 13784 | 63.7% | 67.23% |
-| go | 12 | 34589 | 98.7% | 99.32% |
-| html | 12 | 44011 | 81.0% | 98.92% |
-| ini | 11 | 9107 | 83.9% | 93.17% |
-| java | 7 | 36900 | 89.2% | 88.51% |
-| javascript | 12 | 98524 | 56.2% | 87.81% |
-| json | 12 | 97519 | 89.7% | 100.00% |
-| jsonc | 1 | 620 | 90.3% | 100.00% |
-| lua | 12 | 36441 | 89.2% | 90.15% |
-| markdown | 12 | 122783 | 82.1% | 95.31% |
-| python | 12 | 53039 | 97.3% | 98.80% |
-| rust | 12 | 118211 | 94.3% | 94.47% |
-| sh | 11 | 46395 | 75.2% | 94.83% |
-| sql | 4 | 10380 | 87.1% | 87.12% |
-| toml | 12 | 18960 | 97.6% | 97.64% |
-| typescript | 12 | 10262 | 87.6% | 89.29% |
-| vim | 11 | 38544 | 46.1% | 50.45% |
-| xml | 12 | 21732 | 94.1% | 94.46% |
-| yaml | 12 | 36969 | 70.7% | 97.76% |
+| language | files | bytes | 0.1.0 | 0.2.0 | 0.3.0 |
+|---|---:|---:|---:|---:|---:|
+| asm | 12 | 45085 | 84.1% | 95.86% | 95.86% |
+| c | 12 | 32861 | 84.6% | 89.85% | 89.85% |
+| cpp | 12 | 31769 | 90.9% | 95.03% | 95.03% |
+| css | 12 | 16812 | 76.8% | 98.95% | 98.95% |
+| diff | 12 | 59999 | 90.0% | 99.56% | 99.56% |
+| dockerfile | 12 | 13784 | 63.7% | 67.23% | 81.51% |
+| go | 12 | 34589 | 98.7% | 99.32% | 99.32% |
+| html | 12 | 44011 | 81.0% | 98.92% | 98.92% |
+| ini | 11 | 9107 | 83.9% | 93.17% | 93.17% |
+| java | 7 | 36900 | 89.2% | 88.51% | 88.51% |
+| javascript | 12 | 98524 | 56.2% | 87.81% | 96.11% |
+| json | 12 | 97519 | 89.7% | 100.00% | 100.00% |
+| jsonc | 1 | 620 | 90.3% | 100.00% | 100.00% |
+| lua | 12 | 36441 | 89.2% | 90.15% | 90.15% |
+| markdown | 12 | 122783 | 82.1% | 95.31% | 95.23% |
+| python | 12 | 53039 | 97.3% | 98.80% | 98.80% |
+| rust | 12 | 118211 | 94.3% | 94.47% | 97.49% |
+| sh | 11 | 46395 | 75.2% | 94.83% | 94.83% |
+| sql | 4 | 10380 | 87.1% | 87.12% | 87.12% |
+| toml | 12 | 18960 | 97.6% | 97.64% | 97.64% |
+| typescript | 12 | 10262 | 87.6% | 89.29% | 98.00% |
+| vim | 11 | 38544 | 46.1% | 50.45% | 64.42% |
+| xml | 12 | 21732 | 94.1% | 94.46% | 94.46% |
+| yaml | 12 | 36969 | 70.7% | 97.76% | 97.76% |
 
-vim, dockerfile, javascript, sql and typescript are the languages to read the
+0.3.0: object-literal keys and arrow-valued keys, JSDoc tags, Rust attributes, regex
+literals, multi-line strings where the language has them, Vim `syn`/`hi`
+commands, makefiles (targets, variables, shell recipes). The metric also
+stopped counting the `comment` parser's `@variable` over comments (dockerfile).
+
+The markdown fixture floor was lowered from 95.4 to 94.0 in 0.3.0: its C
+fence holds m31 code (`prim int __open(str path ...)`), which the C
+heuristic for declared type names now reads as types and tree-sitter's C
+parses as an error.
+
+vim, dockerfile, sql, lua, c and java are the languages to read the
 disagreement lists for (`report.sh --top 6 --lang vim`):
 
 - vim: `syn match name /pattern/` patterns are strings and `syn`/`hi`/`match`

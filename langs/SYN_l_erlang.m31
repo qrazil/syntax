@@ -8,7 +8,7 @@ pub SYN_lang.Lang define() {
     lang.constants = "true false undefined ok error";
     lang.comment_leader = "% ";
     lang.line_comment("%");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
     lang.string("'", "'", "\\", "");
     return lang.build();
 }

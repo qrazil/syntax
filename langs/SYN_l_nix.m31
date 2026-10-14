@@ -13,6 +13,6 @@ pub SYN_lang.Lang define() {
     lang.line_comment("#");
     lang.block_comment("/*", "*/", "");
     lang.string("''", "''", "", "m");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
     return lang.build();
 }

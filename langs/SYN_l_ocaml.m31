@@ -10,7 +10,7 @@ pub SYN_lang.Lang define() {
     lang.decl_type = "type module class exception";
     lang.word_body = "'";
     lang.block_comment("(*", "*)", "n");
-    lang.string("\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
     lang.string("'", "'", "\\", "c");
     lang.string("{|", "|}", "", "m");
     return lang.build();

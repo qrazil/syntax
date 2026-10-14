@@ -40,12 +40,16 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
         SYN_lines.scan_gitcommit(scanner, line, state);
     } else if (lang.mode == "gitrebase") {
         SYN_lines.scan_gitrebase(scanner, line, state);
+    } else if (lang.mode == "vim" && SYN_lines.is_vim_command_scanned(scanner, line)) {
+        scanner.state = 0;
     } else if (lang.mode == "ini") {
         SYN_lines.scan_ini(scanner, line);
     } else if (lang.mode == "css") {
         SYN_css.scan(scanner, lang, line, state);
     } else if (lang.mode == "dockerfile") {
         SYN_lines.scan_dockerfile(scanner, lang, line, state);
+    } else if (lang.mode == "makefile") {
+        SYN_lines.scan_makefile(scanner, lang, line, state);
     } else if (lang.mode == "yaml") {
         SYN_lines.scan_yaml(scanner, lang, line, state);
     } else {

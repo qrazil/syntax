@@ -15,6 +15,7 @@ import core.SYN_scanner;
 const int K_BLOCK = 1;
 const int K_STRING = 2;
 const int K_HEREDOC = 3;
+const int K_CONTINUED = 4;
 const Array<str> REGEX_AFTER = ["return", "typeof", "case", "in", "of", "delete", "void", "throw", "new", "else", "do", "instanceof", "yield", "await"];
 
 bool is_digit_byte(int byte) {
@@ -411,6 +412,122 @@ int variable_constant(str line, int from, int upto) {
     return (name_from << 20) | name_to;
 }
 
+// A block comment's bytes [from, upto). In a doc comment (`/** */`) the
+// `@tag`s are keywords and `{Type}`s types, as tree-sitter's jsdoc has them.
+void emit_comment(SYN_scanner.Scanner scanner, str line, int from, int upto, bool is_doc) {
+    if (!is_doc) {
+        scanner.emit(from, upto, SYN_class.COMMENT);
+        return;
+    }
+    int position = from;
+    int run = from;
+    while (position < upto) {
+        int byte = line.byte_at(position);
+        if (byte == 64 && position + 1 < upto && is_alpha(line.byte_at(position + 1)) && (position == from || !is_alnum(line.byte_at(position - 1)))) {
+            int stop = position + 1;
+            while (stop < upto && is_alnum(line.byte_at(stop))) {
+                stop = stop + 1;
+            }
+            scanner.emit(run, position, SYN_class.COMMENT);
+            scanner.emit(position, stop, SYN_class.KEYWORD);
+            position = stop;
+            run = stop;
+        } else if (byte == 123) {
+            int depth = 1;
+            int stop = position + 1;
+            while (stop < upto && depth > 0) {
+                if (line.byte_at(stop) == 123) {
+                    depth = depth + 1;
+                } else if (line.byte_at(stop) == 125) {
+                    depth = depth - 1;
+                }
+                stop = stop + 1;
+            }
+            if (depth == 0) {
+                scanner.emit(run, position, SYN_class.COMMENT);
+                scanner.emit(position + 1, stop - 1, SYN_class.TYPE);
+                scanner.emit(position, position + 1, SYN_class.COMMENT);
+                position = stop;
+                run = stop;
+            } else {
+                position = position + 1;
+            }
+        } else {
+            position = position + 1;
+        }
+    }
+    scanner.emit(run, upto, SYN_class.COMMENT);
+}
+
+// the first non-blank byte at or after `from`, or -1
+int next_byte(str line, int from) {
+    int position = from;
+    while (position < line.size() && is_space(line.byte_at(position))) {
+        position = position + 1;
+    }
+    if (position >= line.size()) {
+        return -1;
+    }
+    return line.byte_at(position);
+}
+
+// a function value after `key:` -- `function`, `async`, `(a) =>`, `x =>`
+bool is_function_value(str line, int from) {
+    int position = from;
+    while (position < line.size() && is_space(line.byte_at(position))) {
+        position = position + 1;
+    }
+    if (position >= line.size()) {
+        return false;
+    }
+    if (is_match_at(line, position, "function") || is_match_at(line, position, "async")) {
+        return true;
+    }
+    int byte = line.byte_at(position);
+    if (byte == 40) {
+        int depth = 0;
+        int probe = position;
+        while (probe < line.size()) {
+            if (line.byte_at(probe) == 40) {
+                depth = depth + 1;
+            } else if (line.byte_at(probe) == 41) {
+                depth = depth - 1;
+                if (depth == 0) {
+                    break;
+                }
+            }
+            probe = probe + 1;
+        }
+        return probe + 1 < line.size() && next_byte(line, probe + 1) == 61 && line.substr(probe + 1, line.size()).trim().starts_with("=>");
+    }
+    if (is_alpha(byte) || byte == 36) {
+        int probe = position;
+        while (probe < line.size() && (is_alnum(line.byte_at(probe)) || line.byte_at(probe) == 36)) {
+            probe = probe + 1;
+        }
+        return line.substr(probe, line.size()).trim().starts_with("=>");
+    }
+    return false;
+}
+
+// `key:` in an object literal: after `{`, `,` or at the start of the line
+bool is_object_key(SYN_lang.Lang lang, str line, int position, int colon) {
+    int before = position - 1;
+    while (before >= 0 && is_space(line.byte_at(before))) {
+        before = before - 1;
+    }
+    if (before < 0) {
+        return true;
+    }
+    int byte = line.byte_at(before);
+    if (byte == 123 || byte == 44) {
+        // a typed parameter list `(a: number, b: string)` is not a key; an
+        // arrow-valued key is one wherever it stands
+        return lang.has_object_keys || is_function_value(line, colon + 1);
+    }
+    return is_function_value(line, colon + 1) && lang.has_arrow_keys;
+}
+
 // A string's bytes [from, upto): STRING, with escapes (`\n`, `\x41`, `\u{1F600}`,
 // `\101`) as SPECIAL, as the form's single escape byte says.
 void emit_string(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int from, int upto, int form, int base_class) {
@@ -538,15 +655,16 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
     scanner.state = 0;
     if (kind == K_BLOCK) {
         int end = block_end(lang, line, 0, form, level);
+        bool is_doc = ((state >> 12) & 1) != 0;
         if (end < 0) {
-            scanner.emit(0, size, SYN_class.COMMENT);
-            scanner.state = K_BLOCK | (form << 4) | ((-end - 1) << 8);
+            emit_comment(scanner, line, 0, size, is_doc);
+            scanner.state = K_BLOCK | (form << 4) | ((-end - 1) << 8) | (state & 4096);
             if (level > 15) {
-                scanner.state = K_BLOCK | (form << 4) | (15 << 8);
+                scanner.state = K_BLOCK | (form << 4) | (15 << 8) | (state & 4096);
             }
             return;
         }
-        scanner.emit(0, end, SYN_class.COMMENT);
+        emit_comment(scanner, line, 0, end, is_doc);
         position = end;
     } else if (kind == K_STRING) {
         int end = string_end(lang, line, 0, form, level);
@@ -576,7 +694,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
     }
     int pending = 0;
     int heredoc = 0;
-    bool is_command = lang.has_commands;
+    bool is_command = lang.has_commands && kind != K_CONTINUED;
     if (lang.has_shebang && position == 0 && size > 2 && line.byte_at(0) == 35 && line.byte_at(1) == 33) {
         scanner.emit(0, size, SYN_class.PREPROC);
         return;
@@ -733,16 +851,21 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                     from = from + 1;
                 }
                 int end = block_end(lang, line, from, block_form, depth);
+                bool is_doc = lang.has_jsdoc && open == "/*" && position + 2 < size && line.byte_at(position + 2) == 42 && !(position + 3 < size && line.byte_at(position + 3) == 47);
+                int doc_bit = 0;
+                if (is_doc) {
+                    doc_bit = 4096;
+                }
                 if (end < 0) {
-                    scanner.emit(position, size, SYN_class.COMMENT);
+                    emit_comment(scanner, line, position, size, is_doc);
                     int carry = -end - 1;
                     if (carry > 15) {
                         carry = 15;
                     }
-                    scanner.state = K_BLOCK | (block_form << 4) | (carry << 8);
+                    scanner.state = K_BLOCK | (block_form << 4) | (carry << 8) | doc_bit;
                     return;
                 }
-                scanner.emit(position, end, SYN_class.COMMENT);
+                emit_comment(scanner, line, position, end, is_doc);
                 position = end;
                 pending = 0;
                 continue;
@@ -905,6 +1028,11 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 } else {
                     class_value = SYN_class.CALL;
                 }
+            } else if ((lang.has_arrow_keys || lang.has_object_keys) && look < size && line.byte_at(look) == 58 && !(look + 1 < size && line.byte_at(look + 1) == 58) && is_object_key(lang, line, position, look)) {
+                class_value = SYN_class.PROPERTY;
+                if (lang.has_arrow_keys && is_function_value(line, look + 1)) {
+                    class_value = SYN_class.FUNCTION;
+                }
             } else if (lang.has_keys && look < size && ((line.byte_at(look) == 58 && !(look + 1 < size && line.byte_at(look + 1) == 58)) || (line.byte_at(look) == 61 && !(look + 1 < size && line.byte_at(look + 1) == 61)))) {
                 class_value = SYN_class.PROPERTY;
             } else if (lang.has_calls && stop < size && line.byte_at(stop) == 40) {
@@ -998,7 +1126,40 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                         }
                         stop = stop + 1;
                     }
-                    scanner.emit(position, stop, SYN_class.ATTRIBUTE);
+                    // #[derive(Debug, Clone)]: the brackets are plain, a name followed
+                    // by `(` is a call, a capitalised name a type, strings strings
+                    int inner = position + open.size();
+                    int inner_end = stop - 1;
+                    while (inner < inner_end) {
+                        int inner_byte = line.byte_at(inner);
+                        if (is_alpha(inner_byte)) {
+                            int word_stop = inner;
+                            while (word_stop < inner_end && is_alnum(line.byte_at(word_stop))) {
+                                word_stop = word_stop + 1;
+                            }
+                            if (word_stop < inner_end && line.byte_at(word_stop) == 40) {
+                                scanner.emit(inner, word_stop, SYN_class.CALL);
+                            } else if (inner_byte >= 65 && inner_byte <= 90) {
+                                scanner.emit(inner, word_stop, SYN_class.TYPE);
+                            }
+                            inner = word_stop;
+                        } else if (inner_byte == 34) {
+                            int str_stop = inner + 1;
+                            while (str_stop < inner_end && line.byte_at(str_stop) != 34) {
+                                if (line.byte_at(str_stop) == 92) {
+                                    str_stop = str_stop + 1;
+                                }
+                                str_stop = str_stop + 1;
+                            }
+                            if (str_stop < inner_end) {
+                                str_stop = str_stop + 1;
+                            }
+                            scanner.emit(inner, str_stop, SYN_class.STRING);
+                            inner = str_stop;
+                        } else {
+                            inner = inner + 1;
+                        }
+                    }
                     position = stop;
                     is_done = true;
                 }
@@ -1041,5 +1202,14 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
     }
     if (heredoc != 0) {
         scanner.state = K_HEREDOC | (heredoc << 12);
+    } else if (lang.has_commands && scanner.state == 0) {
+        // a trailing backslash: the next line continues this command
+        int finish = size;
+        while (finish > 0 && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
+            finish = finish - 1;
+        }
+        if (finish > 0 && line.byte_at(finish - 1) == 92) {
+            scanner.state = K_CONTINUED;
+        }
     }
 }

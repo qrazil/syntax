@@ -13,7 +13,7 @@ pub SYN_lang.Lang define() {
     lang.has_caps = false;
     lang.has_calls = false;
     lang.line_comment("#");
-    lang.string("\"", "\"", "\\", "");
-    lang.string("'", "'", "\\", "");
+    lang.string("\"", "\"", "\\", "m");
+    lang.string("'", "'", "\\", "m");
     return lang.build();
 }
