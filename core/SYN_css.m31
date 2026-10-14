@@ -302,7 +302,7 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                 }
                 if (word == "and" || word == "or" || word == "not" || word == "only") {
                     scanner.emit(position, end, SYN_class.KEYWORD);
-                } else if (look < size && line.byte_at(look) == 58 && line.byte_at(position - 1) == 40) {
+                } else if (look < size && line.byte_at(look) == 58 && position > 0 && line.byte_at(position - 1) == 40) {
                     scanner.emit(position, end, SYN_class.PROPERTY);
                 } else if (end < size && line.byte_at(end) == 40) {
                     scanner.emit(position, end, SYN_class.FUNCTION);

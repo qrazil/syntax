@@ -3,6 +3,12 @@
 Renames, moves and removed names, newest first. A release that changes a name
 or a module path adds an entry here.
 
+## 0.4.2
+
+No name changed. Fixed a trap in the CSS scanner (an at-rule prelude that
+continued on a line starting with a name), found by the new randomized
+robustness test: no input may trap.
+
 ## 0.4.1
 
 Added `SYN_structure.comment_forms(language)`: [line leader, block open,

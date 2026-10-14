@@ -34,28 +34,32 @@ List<str> make_lines(int count, Random random) {
     return lines;
 }
 
-List<str> lines = make_lines(1500, Random());
-int checked = 0;
-for (str name in SYN_registry.names()) {
-    SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: name);
-    highlighter.set_lines(lines);
-    for (int row in 0 .. lines.size()) {
-        List<int> classes = highlighter.classes(row);
-        if (classes.size() != lines[row].size()) {
-            check.ok(name + ": one class per byte at row " + str(row), false);
+int total = 0;
+for (int round in 0 .. 3) {
+    Random generator = Random();
+    generator.seed = 1000 + round * 7919;
+    List<str> lines = make_lines(2000, generator);
+    for (str name in SYN_registry.names()) {
+        SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: name);
+        highlighter.set_lines(lines);
+        for (int row in 0 .. lines.size()) {
+            List<int> classes = highlighter.classes(row);
+            if (classes.size() != lines[row].size()) {
+                check.ok(name + ": one class per byte at row " + str(row), false);
+            }
+            total = total + 1;
         }
-        checked = checked + 1;
-    }
-    // edit in the middle and at the top: the incremental walk must also hold
-    lines[7] = lines[7] + "\"" + "/*";
-    highlighter.update(7, lines);
-    lines.insert(3, "<script>`");
-    highlighter.update(3, lines);
-    lines.remove_at(3);
-    highlighter.update(3, lines);
-    for (int row in 0 .. lines.size()) {
-        highlighter.classes(row);
+        // edit in the middle and at the top: the incremental walk must also hold
+        lines[7] = lines[7] + "\"" + "/*";
+        highlighter.update(7, lines);
+        lines.insert(3, "<script>`");
+        highlighter.update(3, lines);
+        lines.remove_at(3);
+        highlighter.update(3, lines);
+        for (int row in 0 .. lines.size()) {
+            highlighter.classes(row);
+        }
     }
 }
-check.ok("lines checked", checked > 90000);
+check.ok("lines checked", total > 90000);
 check.finish();
