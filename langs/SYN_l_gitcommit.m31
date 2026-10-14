@@ -1,0 +1,12 @@
+// Git commit.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("gitcommit");
+    lang.mode = "gitcommit";
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    return lang.build();
+}

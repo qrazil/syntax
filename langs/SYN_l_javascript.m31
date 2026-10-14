@@ -1,0 +1,22 @@
+// javascript.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("javascript");
+    lang.keywords = "async await break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new of return static super switch this throw try typeof var void while with yield get set from as";
+    lang.types = "Array Map Set WeakMap WeakSet Promise Object String Number Boolean Date Error Symbol RegExp Function BigInt JSON Math Proxy Reflect";
+    lang.constants = "true false null undefined NaN Infinity";
+    lang.builtins = "console require parseInt parseFloat isNaN setTimeout setInterval clearTimeout fetch";
+    lang.specials = "this super arguments";
+    lang.decl_fn = "function";
+    lang.decl_type = "class";
+    lang.word_start = "$";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("`", "`", "\\", "mi");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

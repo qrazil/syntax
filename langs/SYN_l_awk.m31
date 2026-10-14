@@ -1,0 +1,14 @@
+// awk.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("awk");
+    lang.keywords = "BEGIN END if else while for do break continue next nextfile exit return function func delete in getline printf print";
+    lang.builtins = "length substr index split sub gsub match sprintf sin cos atan2 exp log sqrt int rand srand tolower toupper system close fflush";
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

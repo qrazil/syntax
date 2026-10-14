@@ -1,0 +1,20 @@
+// elixir.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("elixir");
+    lang.keywords = "after alias and case catch cond def defdelegate defexception defguard defimpl defmacro defmacrop defmodule defoverridable defp defprotocol defstruct do else end fn for if import in not or quote raise receive require rescue reraise return send spawn super throw try unless unquote use when with";
+    lang.constants = "true false nil";
+    lang.builtins = "IO.puts inspect is_atom is_binary is_boolean is_float is_function is_integer is_list is_map is_nil is_number is_pid is_tuple length hd tl elem map_size";
+    lang.decl_fn = "def defp defmacro defmacrop defguard";
+    lang.decl_type = "defmodule defprotocol defimpl defstruct defexception";
+    lang.word_body = "?!";
+    lang.comment_leader = "# ";
+    lang.line_comment("#");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("'''", "'''", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

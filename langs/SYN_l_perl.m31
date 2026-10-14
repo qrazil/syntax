@@ -1,0 +1,20 @@
+// perl.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("perl");
+    lang.keywords = "if else elsif unless while until for foreach do last next redo return goto sub my our local use no package require BEGIN END and or not xor eq ne lt gt le ge cmp x qw qq q qr m s tr y print say die warn eval defined undef ref bless wantarray __PACKAGE__ __FILE__ __LINE__ __DATA__ __END__";
+    lang.builtins = "print printf say push pop shift unshift splice keys values each delete exists defined scalar join split map grep sort reverse length substr index sprintf open close chomp chop lc uc";
+    lang.decl_fn = "sub";
+    lang.decl_type = "package";
+    lang.sigil = "$@%";
+    lang.comment_leader = "# ";
+    lang.has_heredoc = true;
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    lang.string("`", "`", "\\", "");
+    return lang.build();
+}

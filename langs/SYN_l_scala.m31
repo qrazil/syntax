@@ -1,0 +1,21 @@
+// scala.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("scala");
+    lang.keywords = "abstract case catch class def do else enum export extends final finally for forSome given if implicit import lazy match new object override package private protected return sealed super then this throw trait try type val var while with yield using opaque inline transparent open end extension derives";
+    lang.types = "Int Long Short Byte Float Double Boolean Char String Unit Any AnyRef AnyVal Nothing Null Option Some None List Map Set Seq Vector Array Either Left Right Future Try Success Failure";
+    lang.constants = "true false null";
+    lang.specials = "this super";
+    lang.decl_fn = "def";
+    lang.decl_type = "class trait object enum type given";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "n");
+    lang.string("\"\"\"", "\"\"\"", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

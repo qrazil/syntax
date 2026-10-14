@@ -1,0 +1,223 @@
+// Token classes and their names.
+//
+// The classes are numbered so that 0..11 are the twelve the editor's and
+// tui's highlighters always had (NORMAL .. TITLE), and the rest extend them.
+// Every class has the name of the tree-sitter capture it stands for
+// (`name_of`), so a parser-backed engine can fill the same classes and an
+// oracle comparison is a direct mapping (`from_capture`).
+//
+//   class         capture                 what it is
+//   NORMAL        variable / none         anything not coloured
+//   COMMENT       comment                 comments (also markdown quotes)
+//   STRING        string                  string and char literals
+//   NUMBER        number                  numeric literals
+//   KEYWORD       keyword                 reserved words
+//   TYPE          type                    type names, builtin types
+//   FUNCTION      function                a declared function's name
+//   PREPROC       keyword.directive       #include, #define, shebang
+//   CONSTANT      constant                true/false/nil, ALL_CAPS
+//   OPERATOR      operator                operators (rarely emitted)
+//   SPECIAL       string.special          escapes, $vars, markdown markers
+//   TITLE         markup.heading          headings
+//   PROPERTY      property                keys: JSON, YAML, TOML, INI
+//   TAG           tag                     markup tag names
+//   ATTRIBUTE     attribute               markup attributes, annotations
+//   PUNCTUATION   punctuation.special     markers the language gives meaning
+//   CALL          function.call           name followed by (
+//   ADDED         diff.plus               diff additions
+//   REMOVED       diff.minus              diff deletions
+//   LINK          markup.link             links
+//   EMPHASIS      markup.italic           *emphasis*
+//   STRONG        markup.strong           **strong**
+//   RAW           markup.raw              inline code, code blocks
+//   BUILTIN_VAR   variable.builtin        self, this, cls
+//   MEMBER        variable.member         the `x` of `a.x` (field access)
+
+pub const int NORMAL = 0;
+pub const int COMMENT = 1;
+pub const int STRING = 2;
+pub const int NUMBER = 3;
+pub const int KEYWORD = 4;
+pub const int TYPE = 5;
+pub const int FUNCTION = 6;
+pub const int PREPROC = 7;
+pub const int CONSTANT = 8;
+pub const int OPERATOR = 9;
+pub const int SPECIAL = 10;
+pub const int TITLE = 11;
+pub const int PROPERTY = 12;
+pub const int TAG = 13;
+pub const int ATTRIBUTE = 14;
+pub const int PUNCTUATION = 15;
+pub const int CALL = 16;
+pub const int ADDED = 17;
+pub const int REMOVED = 18;
+pub const int LINK = 19;
+pub const int EMPHASIS = 20;
+pub const int STRONG = 21;
+pub const int RAW = 22;
+pub const int BUILTIN_VAR = 23;
+pub const int MEMBER = 24;
+pub const int COUNT = 25;
+const Array<str> NAMES = ["variable", "comment", "string", "number", "keyword", "type", "function", "keyword.directive", "constant", "operator", "string.special", "markup.heading", "property", "tag", "attribute", "punctuation.special", "function.call", "diff.plus", "diff.minus", "markup.link", "markup.italic", "markup.strong", "markup.raw", "variable.builtin", "variable.member"];
+// `legacy` folds a class onto the first twelve.
+const Array<int> LEGACY = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 5, 4, 7, 0, 6, 2, 4, 6, 5, 4, 2, 8, 0];
+
+/// The tree-sitter capture name of a class.
+pub str name_of(int class_value) {
+    if (class_value < 0 || class_value >= COUNT) {
+        return "variable";
+    }
+    return NAMES[class_value];
+}
+
+/// The class a tree-sitter capture name stands for: the longest dotted
+/// prefix that is known (`keyword.function` is KEYWORD, `string.escape` is
+/// SPECIAL, `punctuation.bracket` is NORMAL). A leading `@` is ignored.
+pub int from_capture(str capture) {
+    str name = capture;
+    if (name.starts_with("@")) {
+        name = name.substr(1, name.size());
+    }
+    if (name.starts_with("string.escape") || name.starts_with("string.special") || name.starts_with("character.special")) {
+        return SPECIAL;
+    }
+    if (name.starts_with("string.regexp") || name.starts_with("string.regex")) {
+        return STRING;
+    }
+    if (name.starts_with("keyword.directive") || name.starts_with("keyword.import") || name.starts_with("preproc") || name.starts_with("include") || name.starts_with("define") || name.starts_with("keyword.preproc")) {
+        return PREPROC;
+    }
+    if (name.starts_with("markup.heading") || name == "text.title" || name.starts_with("text.title")) {
+        return TITLE;
+    }
+    if (name.starts_with("markup.link") || name.starts_with("text.uri") || name.starts_with("text.reference") || name.starts_with("string.special.url")) {
+        return LINK;
+    }
+    if (name.starts_with("markup.italic") || name.starts_with("text.emphasis")) {
+        return EMPHASIS;
+    }
+    if (name.starts_with("markup.strong") || name.starts_with("text.strong")) {
+        return STRONG;
+    }
+    if (name.starts_with("markup.raw") || name.starts_with("text.literal")) {
+        return RAW;
+    }
+    if (name.starts_with("diff.plus") || name.starts_with("text.diff.add")) {
+        return ADDED;
+    }
+    if (name.starts_with("diff.minus") || name.starts_with("text.diff.delete")) {
+        return REMOVED;
+    }
+    if (name.starts_with("keyword") || name.starts_with("conditional") || name.starts_with("repeat") || name.starts_with("exception") || name.starts_with("storageclass")) {
+        return KEYWORD;
+    }
+    if (name.starts_with("function.call") || name.starts_with("function.method") || name.starts_with("function.macro") || name.starts_with("function.builtin") || name.starts_with("method") || name.starts_with("constructor")) {
+        return CALL;
+    }
+    if (name.starts_with("function")) {
+        return FUNCTION;
+    }
+    if (name.starts_with("type")) {
+        return TYPE;
+    }
+    if (name.starts_with("string") || name.starts_with("character")) {
+        return STRING;
+    }
+    if (name.starts_with("comment")) {
+        return COMMENT;
+    }
+    if (name.starts_with("number") || name.starts_with("float") || name.starts_with("boolean")) {
+        if (name.starts_with("boolean")) {
+            return CONSTANT;
+        }
+        return NUMBER;
+    }
+    if (name.starts_with("constant")) {
+        return CONSTANT;
+    }
+    if (name.starts_with("variable.builtin")) {
+        return BUILTIN_VAR;
+    }
+    if (name.starts_with("variable.member")) {
+        return MEMBER;
+    }
+    if (name.starts_with("property") || name.starts_with("field")) {
+        return PROPERTY;
+    }
+    if (name.starts_with("tag.attribute") || name.starts_with("attribute")) {
+        return ATTRIBUTE;
+    }
+    if (name.starts_with("tag")) {
+        return TAG;
+    }
+    if (name.starts_with("operator")) {
+        return OPERATOR;
+    }
+    return NORMAL;
+}
+
+/// The class folded onto the twelve every older consumer knows: PROPERTY
+/// is TYPE (as keys always were), TAG is KEYWORD, ATTRIBUTE is PREPROC,
+/// CALL is FUNCTION, ADDED is STRING, REMOVED is KEYWORD, LINK is FUNCTION,
+/// EMPHASIS is TYPE, STRONG is KEYWORD, RAW is STRING, BUILTIN_VAR is
+/// CONSTANT, PUNCTUATION is NORMAL.
+pub int legacy(int class_value) {
+    if (class_value < 0 || class_value >= COUNT) {
+        return NORMAL;
+    }
+    return LEGACY[class_value];
+}
+
+/// The colour a class is drawn in, as a 16-colour palette index 1..14, or
+/// -1 for the terminal's own foreground. `is_dark` picks between the two
+/// shades that read badly on the other kind of background. Add 256 for bold.
+pub int palette(int class_value, bool is_dark) {
+    int folded = legacy(class_value);
+    if (folded == COMMENT) {
+        return 8;
+    }
+    if (folded == STRING) {
+        return 2;
+    }
+    if (folded == NUMBER) {
+        if (is_dark) {
+            return 3;
+        }
+        return 1;
+    }
+    if (folded == KEYWORD) {
+        return 5 + 256;
+    }
+    if (folded == TYPE) {
+        if (is_dark) {
+            return 6;
+        }
+        return 4;
+    }
+    if (folded == FUNCTION) {
+        if (is_dark) {
+            return 12;
+        }
+        return 4;
+    }
+    if (folded == PREPROC) {
+        return 5;
+    }
+    if (folded == CONSTANT) {
+        if (is_dark) {
+            return 3;
+        }
+        return 1;
+    }
+    if (folded == SPECIAL) {
+        return 6;
+    }
+    if (folded == TITLE) {
+        if (is_dark) {
+            return 3 + 256;
+        }
+        return 1 + 256;
+    }
+    return -1;
+}

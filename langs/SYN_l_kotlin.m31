@@ -1,0 +1,21 @@
+// kotlin.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("kotlin");
+    lang.keywords = "as break class continue do else for fun if in interface is null object package return super this throw try typealias typeof val var when while by catch constructor delegate dynamic field file finally get import init param property receiver set setparam value where abstract actual annotation companion const crossinline data enum expect external final infix inline inner internal lateinit noinline open operator out override private protected public reified sealed suspend tailrec vararg";
+    lang.types = "Int Long Short Byte Float Double Boolean Char String Unit Any Nothing Array List Map Set MutableList MutableMap MutableSet Pair Triple Sequence";
+    lang.constants = "true false null";
+    lang.specials = "this super";
+    lang.decl_fn = "fun";
+    lang.decl_type = "class interface object enum typealias";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "n");
+    lang.string("\"\"\"", "\"\"\"", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

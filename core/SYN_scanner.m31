@@ -1,0 +1,71 @@
+// The scanner: the reusable buffer a line is tokenized into, and the cache
+// of compiled languages. One scanner serves any number of lines and
+// languages; nothing is allocated per token.
+//
+// After `SYN_engine.scan(scanner, lang, line, state)`:
+//   `spans`   flat triples: start, end (exclusive, bytes), class. Sorted,
+//             non-overlapping; bytes in no span are NORMAL.
+//   `state`   what the next line must be scanned from (0 = plain).
+
+import core.SYN_lang;
+
+pub type Scanner {
+    pub List<int> spans = [];
+    pub int state = 0;
+    pub Map<str, SYN_lang.Lang> langs = {};
+    pub SYN_lang.Lang plain = SYN_lang.Lang("plain");
+    // an injection request, set by a host mode (markdown fence, <script>):
+    // scan line[inj_from .. inj_to] with language `inj_lang` from the inner
+    // state `inj_state`; the engine merges the spans and packs the state.
+    pub str inj_lang = "";
+    pub int inj_from = 0;
+    pub int inj_to = 0;
+    pub int inj_state = 0;
+}
+
+/// Forget the spans (the engine does this at the start of every line).
+pub void Scanner.clear() {
+    spans.clear();
+    state = 0;
+    inj_lang = "";
+    inj_from = 0;
+    inj_to = 0;
+    inj_state = 0;
+}
+
+/// Record a classified range; empty ranges and NORMAL are dropped.
+pub void Scanner.emit(int from, int upto, int class_value) {
+    if (upto <= from || class_value == 0) {
+        return;
+    }
+    int count = spans.size();
+    if (count >= 3 && spans[count - 1] == class_value && spans[count - 2] == from) {
+        spans[count - 2] = upto;
+        return;
+    }
+    spans.push(from);
+    spans.push(upto);
+    spans.push(class_value);
+}
+
+/// The class of every byte of a line of `size` bytes, from `spans`.
+pub List<int> Scanner.classes(int size) {
+    List<int> out = [0; size];
+    int position = 0;
+    while (position + 2 < spans.size()) {
+        int stop = spans[position + 1];
+        if (stop > size) {
+            stop = size;
+        }
+        for (int index in spans[position] .. stop) {
+            out[index] = spans[position + 2];
+        }
+        position = position + 3;
+    }
+    return out;
+}
+
+/// The number of tokens in `spans`.
+pub int Scanner.count() {
+    return spans.size() / 3;
+}

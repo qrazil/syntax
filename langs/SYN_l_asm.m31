@@ -1,0 +1,24 @@
+// Assembly.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("asm");
+    lang.keywords = "mov movl movq movb movw movzx movsx lea push pop call ret jmp je jne jz jnz jg jge jl jle ja jae jb jbe add sub mul imul div idiv inc dec neg not and or xor shl shr sar sal rol ror cmp test nop int syscall leave enter hlt cli sti xchg cmov cld std rep movs stos lodsb ldr str ldrb strb bl bx b beq bne blt bgt ble bge mov mvn cmn tst eor orr bic lsl lsr asr stp ldp adrp adr cbz cbnz svc wfi";
+    lang.types = "byte word dword qword ptr";
+    lang.specials = "rax rbx rcx rdx rsi rdi rbp rsp eax ebx ecx edx esi edi ebp esp ax bx cx dx al bl cl dl r8 r9 r10 r11 r12 r13 r14 r15 x0 x1 x2 x3 x4 x5 x6 x7 x8 x29 x30 sp lr pc xzr w0 w1 w2 w3";
+    lang.word_start = ".%$";
+    lang.word_body = ".$";
+    lang.comment_leader = "; ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment(";");
+    lang.line_comment("#");
+    lang.line_comment("//");
+    lang.line_comment("@");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

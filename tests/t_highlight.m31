@@ -1,0 +1,76 @@
+// The Highlighter: lazy states, incremental update, convergence.
+
+import core.SYN_class;
+import core.SYN_highlight;
+import tests.SYN_check;
+
+SYN_check.Check check = SYN_check.Check();
+List<str> lines = ["int a;", "/* open", "still", "close */ int b;", "int c;", "int d;"];
+SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: "c");
+highlighter.set_lines(lines);
+check.eq_int("state at the start", highlighter.state_at(0), 0);
+check.ok("state inside the comment", highlighter.state_at(2) != 0);
+check.eq_int("state after the comment", highlighter.state_at(4), 0);
+check.eq_int("comment bytes", highlighter.classes(2)[0], SYN_class.COMMENT);
+check.eq_int("code after the comment", highlighter.classes(3)[9], SYN_class.TYPE);
+check.eq_int("out of range", highlighter.classes(99).size(), 0);
+// an edit that opens a comment at the top: the walk runs to the line that
+// closes it, and tells the caller which lines to redraw
+lines[0] = "/* now";
+List<int> range = highlighter.update(0, lines);
+check.eq_int("first redrawn line", range[0], 0);
+check.eq_int("converges where the old comment began", range[1], 2);
+check.eq_int("comment bytes on the edited line", highlighter.classes(0)[0], SYN_class.COMMENT);
+check.eq_int("state after the comment still closes", highlighter.state_at(4), 0);
+// an edit that changes nothing downstream stops at once
+lines[4] = "int c2;";
+range = highlighter.update(4, lines);
+check.eq_int("one line", range[1] - range[0], 1);
+// an inserted line shifts the cached states with the lines
+lines.insert(1, "*/");
+range = highlighter.update(0, lines);
+check.eq_int("insert: nothing unchanged is redrawn twice", range[0], 0);
+check.ok("insert: converges before the end", range[1] <= 3);
+check.eq_int("insert: state after the closer", highlighter.state_at(2), 0);
+check.eq_int("insert: later comment still open", highlighter.classes(3)[0], SYN_class.COMMENT);
+check.eq_int("insert: code after it", highlighter.classes(4)[9], SYN_class.TYPE);
+// a deleted line
+lines.remove_at(1);
+range = highlighter.update(0, lines);
+check.eq_int("delete: comment is back", highlighter.classes(1)[0], SYN_class.COMMENT);
+check.eq_int("delete: tail unchanged", highlighter.state_at(4), 0);
+// the is_same buffer re-walked from scratch agrees with the incremental states
+SYN_highlight.Highlighter fresh = SYN_highlight.Highlighter(language: "c");
+fresh.set_lines(lines);
+bool is_same = true;
+for (int row in 0 .. lines.size()) {
+    if (fresh.state_at(row) != highlighter.state_at(row)) {
+        is_same = false;
+    }
+}
+check.ok("incremental states equal a fresh walk", is_same);
+// a language-less highlighter is plain
+SYN_highlight.Highlighter plain = SYN_highlight.Highlighter(language: "");
+plain.set_lines(lines);
+check.eq_int("plain text has no classes", plain.classes(0).size(), 0);
+// injection: a python fence's state survives an incremental edit
+List<str> doc = ["# t", "```python", "x = \"\"\"a", "b\"\"\"", "```", "text"];
+SYN_highlight.Highlighter markdown_view = SYN_highlight.Highlighter(language: "markdown");
+markdown_view.set_lines(doc);
+check.eq_int("string in a fence", markdown_view.classes(2)[5], SYN_class.STRING);
+check.eq_int("triple string continues", markdown_view.classes(3)[0], SYN_class.STRING);
+check.eq_int("fence closed", markdown_view.state_at(5), 0);
+doc[2] = "x = 1";
+markdown_view.update(2, doc);
+check.eq_int("number in the fence", markdown_view.classes(2)[4], SYN_class.NUMBER);
+check.ok("the string closed below no longer closes", markdown_view.state_at(4) != 0);
+// a long file: states by lazy walk
+List<str> big = [];
+for (int row in 0 .. 3000) {
+    big.push("int v" + str(row) + " = " + str(row) + "; // c");
+}
+big.insert(1500, "/*");
+SYN_highlight.Highlighter long = SYN_highlight.Highlighter(language: "c");
+long.set_lines(big);
+check.eq_int("deep line is inside the comment", long.classes(2000)[0], SYN_class.COMMENT);
+check.finish();

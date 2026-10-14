@@ -1,0 +1,17 @@
+// m31.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("m31");
+    lang.keywords = "if else for while in break continue return match case default type enum interface import pub const void int bool str bytes float static distinct spawn this true false";
+    lang.types = "List Map Array Chan Option Result";
+    lang.constants = "true false none";
+    lang.decl_type = "type enum interface distinct";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

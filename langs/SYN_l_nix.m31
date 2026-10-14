@@ -1,0 +1,18 @@
+// nix.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("nix");
+    lang.keywords = "if then else assert with let in rec inherit or import";
+    lang.constants = "true false null";
+    lang.builtins = "builtins abort throw toString map fetchurl fetchTarball derivation";
+    lang.word_body = "-'";
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.block_comment("/*", "*/", "");
+    lang.string("''", "''", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

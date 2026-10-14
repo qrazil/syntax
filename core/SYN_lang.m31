@@ -1,0 +1,273 @@
+// A language definition, and the tables compiled from it.
+//
+// A language is DATA: word lists, comment and string forms, a few flags. A
+// language file (langs/SYN_l_NAME.m31) fills a `Lang` and calls `build()`,
+// which compiles the lists once into
+//
+//   - `start`: a 256-entry table, one mask per byte, saying which token
+//     kinds can begin with that byte (so the scanner's hot loop is a table
+//     lookup, and a byte that begins nothing costs one load);
+//   - `table`/`blob`: an open-addressing hash table of the keyword, type,
+//     constant and builtin words, keyed on the identifier's bytes, so
+//     classifying an identifier allocates nothing.
+//
+// Fields marked "spec" are written by the language file; the rest is
+// compiled.
+
+import core.SYN_class;
+
+// bits of a `start` mask
+pub const int M_WORD = 1;
+pub const int M_DIGIT = 2;
+pub const int M_STRING = 4;
+pub const int M_COMMENT = 8;
+pub const int M_SIGIL = 16;
+pub const int M_ATTR = 32;
+pub const int M_BODY = 64;
+pub const int M_PREPROC = 128;
+pub const int M_SPECIAL = 256;
+// a decl marker on a table entry: the word makes the next identifier a
+// function (1) or a type (2) declaration
+pub const int DECL_FN = 1;
+pub const int DECL_TYPE = 2;
+
+pub type Lang {
+    // spec
+    pub str name;
+    pub str mode = "code";
+    pub str keywords = "";
+    pub str types = "";
+    pub str constants = "";
+    pub str builtins = "";
+    pub str specials = "";
+    pub str decl_fn = "";
+    pub str decl_type = "";
+    pub bool is_case_folded = false;
+    pub List<str> line_comments = [];
+    pub List<str> start_comments = [];
+    pub List<str> block_comments = [];
+    pub List<str> strings = [];
+    pub List<str> attr_open = [];
+    pub bool needs_comment_space = false;
+    pub str word_start = "";
+    pub str word_body = "";
+    pub str preproc = "";
+    pub str attr = "";
+    pub str sigil = "";
+    pub str str_prefix = "";
+    pub str special_open = "";
+    pub bool has_calls = true;
+    pub bool has_caps = true;
+    pub bool has_keys = false;
+    pub bool has_string_keys = false;
+    pub bool has_signed_numbers = false;
+    pub bool has_heredoc = false;
+    pub bool has_bang_calls = false;
+    pub bool has_include_angle = false;
+    pub str comment_leader = "";
+    pub str indent_style = "brace";
+    pub str symbol_style = "keyword";
+    pub int symbol_depth = 0;
+    pub bool has_sections = false;
+    // compiled
+    pub List<int> start = [];
+    pub List<int> table = [];
+    pub str blob = "";
+    pub int mask = 0;
+}
+
+/// A line comment form: `//`, `#`, `--`.
+pub void Lang.line_comment(str open) {
+    line_comments.push(open);
+}
+
+/// A block comment form. `flags`: "n" nests, "L" is a Lua-style long
+/// bracket (`--[==[ ... ]==]`: `open` is the part before the `=`s and `[`).
+pub void Lang.block_comment(str open, str close, str flags) {
+    block_comments.push(open);
+    block_comments.push(close);
+    block_comments.push(flags);
+}
+
+/// A string form. `escape` is the escape byte ("\\"), "" for none, or
+/// "doubled" when the closing quote doubled stands for itself. `flags`:
+/// "m" may span lines, "c" is a char literal that must be short (so a
+/// Rust lifetime `'a` is not one), "R" a Rust raw string (`open` is the
+/// prefix, e.g. `r`; hashes and the quote follow), "L" a Lua long bracket,
+/// "i" interpolates (its `${..}`/`{..}` parts are painted as code).
+pub void Lang.string(str open, str close, str escape, str flags) {
+    strings.push(open);
+    strings.push(close);
+    strings.push(escape);
+    strings.push(flags);
+}
+
+void Lang.insert(str word, int class_value, int decl) {
+    if (word.size() == 0) {
+        return;
+    }
+    str stored = word;
+    if (is_case_folded) {
+        stored = word.to_lower();
+    }
+    int slot = hash_of(stored, 0, stored.size(), false) & mask;
+    while (table[slot] != 0) {
+        int entry = table[slot];
+        int length = (entry >> 12) & 0xFFF;
+        int offset = (entry >> 24) - 1;
+        if (length == stored.size() && blob.substr(offset, offset + length) == stored) {
+            return;
+        }
+        slot = (slot + 1) & mask;
+    }
+    int offset = blob.size();
+    blob = blob + stored;
+    table[slot] = ((offset + 1) << 24) | (stored.size() << 12) | (decl << 8) | class_value;
+}
+
+void Lang.insert_all(str list, int class_value, int decl) {
+    for (str word in list.split(" ")) {
+        insert(word, class_value, decl);
+    }
+}
+
+void Lang.mark(int byte, int bits) {
+    start[byte] = start[byte] | bits;
+}
+
+void Lang.mark_first(str text, int bits) {
+    if (text.size() > 0) {
+        mark(text.byte_at(0), bits);
+    }
+}
+
+void Lang.mark_all(str chars, int bits) {
+    for (int index in 0 .. chars.size()) {
+        mark(chars.byte_at(index), bits);
+    }
+}
+
+/// Compile the spec; answers this language for chaining.
+pub Lang Lang.build() {
+    int total = count_words(keywords) + count_words(types) + count_words(constants) + count_words(builtins) + count_words(specials) + count_words(decl_fn) + count_words(decl_type);
+    int size = 16;
+    while (size < total * 2 + 2) {
+        size = size * 2;
+    }
+    mask = size - 1;
+    table = [0; size];
+    blob = "";
+    start = [0; 256];
+    // order is priority: the first insertion of a word wins
+    insert_all(specials, SYN_class.BUILTIN_VAR, 0);
+    insert_all(decl_fn, SYN_class.KEYWORD, DECL_FN);
+    insert_all(decl_type, SYN_class.KEYWORD, DECL_TYPE);
+    insert_all(keywords, SYN_class.KEYWORD, 0);
+    insert_all(types, SYN_class.TYPE, 0);
+    insert_all(constants, SYN_class.CONSTANT, 0);
+    insert_all(builtins, SYN_class.CALL, 0);
+    for (int byte in 0 .. 256) {
+        if ((byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128) {
+            mark(byte, M_WORD | M_BODY);
+        } else if (byte >= 48 && byte <= 57) {
+            mark(byte, M_DIGIT | M_BODY);
+        }
+    }
+    mark_all(word_start, M_WORD | M_BODY);
+    mark_all(word_body, M_BODY);
+    mark_all(sigil, M_SIGIL);
+    mark_all(attr, M_ATTR);
+    mark_all(preproc, M_PREPROC);
+    mark_all(special_open, M_SPECIAL);
+    if (has_heredoc) {
+        mark(60, M_SPECIAL);
+    }
+    for (str open in line_comments) {
+        mark_first(open, M_COMMENT);
+    }
+    int cursor = 0;
+    while (cursor + 2 < block_comments.size()) {
+        mark_first(block_comments[cursor], M_COMMENT);
+        cursor = cursor + 3;
+    }
+    cursor = 0;
+    while (cursor + 3 < strings.size()) {
+        mark_first(strings[cursor], M_STRING);
+        cursor = cursor + 4;
+    }
+    for (str open in start_comments) {
+        mark_first(open, M_COMMENT);
+    }
+    for (str open in attr_open) {
+        mark_first(open, M_ATTR);
+    }
+    if (has_signed_numbers) {
+        mark(45, M_DIGIT);
+    }
+    return this;
+}
+
+/// The table entry of the identifier `text[from .. upto]`, or 0: class in the
+/// low 8 bits, decl marker in bits 8..9.
+pub int Lang.lookup(str text, int from, int upto) {
+    int length = upto - from;
+    if (length <= 0 || length > 4095) {
+        return 0;
+    }
+    int slot = hash_of(text, from, upto, is_case_folded) & mask;
+    while (true) {
+        int entry = table[slot];
+        if (entry == 0) {
+            return 0;
+        }
+        if (((entry >> 12) & 0xFFF) == length) {
+            int offset = (entry >> 24) - 1;
+            bool is_same = true;
+            for (int index in 0 .. length) {
+                int left = text.byte_at(from + index);
+                if (is_case_folded && left >= 65 && left <= 90) {
+                    left = left + 32;
+                }
+                if (left != blob.byte_at(offset + index)) {
+                    is_same = false;
+                    break;
+                }
+            }
+            if (is_same) {
+                return entry & 0x3FF;
+            }
+        }
+        slot = (slot + 1) & mask;
+    }
+}
+
+/// True when `byte` can be part of an identifier in this language.
+pub bool Lang.is_body(int byte) {
+    return (start[byte] & M_BODY) != 0;
+}
+
+bool is_word_byte(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128 || (byte >= 48 && byte <= 57);
+}
+
+pub int hash_of(str text, int from, int upto, bool is_case_folded) {
+    int hash = 5381;
+    for (int index in from .. upto) {
+        int byte = text.byte_at(index);
+        if (is_case_folded && byte >= 65 && byte <= 90) {
+            byte = byte + 32;
+        }
+        hash = (hash * 33 + byte) & 0xFFFFFFF;
+    }
+    return hash;
+}
+
+int count_words(str list) {
+    int total = 0;
+    for (str word in list.split(" ")) {
+        if (word.size() > 0) {
+            total = total + 1;
+        }
+    }
+    return total;
+}

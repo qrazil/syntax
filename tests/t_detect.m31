@@ -1,0 +1,81 @@
+// Language detection: file name, extension, modeline and shebang.
+
+import core.SYN_detect;
+import tests.SYN_check;
+
+SYN_check.Check check = SYN_check.Check();
+
+void expect(SYN_check.Check check, str path, str first, str want) {
+    check.eq_str("language_of(" + path + ", " + first + ")", SYN_detect.language_of(path, first), want);
+}
+
+expect(check, "a/b/x.c", "", "c");
+expect(check, "x.h", "", "c");
+expect(check, "x.hpp", "", "cpp");
+expect(check, "main.rs", "", "rust");
+expect(check, "main.go", "", "go");
+expect(check, "a.tsx", "", "typescript");
+expect(check, "a.jsx", "", "javascript");
+expect(check, "a.json", "", "json");
+expect(check, "a.jsonc", "", "jsonc");
+expect(check, "m3d1tor.m31", "", "m31");
+expect(check, "README.md", "", "markdown");
+expect(check, "README", "", "markdown");
+expect(check, "a.py", "", "python");
+expect(check, "a.sh", "", "sh");
+expect(check, "Cargo.toml", "", "toml");
+expect(check, "ci.yml", "", "yaml");
+expect(check, "A.PY", "", "python");
+expect(check, "Makefile", "", "makefile");
+expect(check, "GNUmakefile", "", "makefile");
+expect(check, "a.mk", "", "makefile");
+expect(check, "Dockerfile", "", "dockerfile");
+expect(check, "Dockerfile.dev", "", "dockerfile");
+expect(check, "app.dockerfile", "", "dockerfile");
+expect(check, "CMakeLists.txt", "", "cmake");
+expect(check, "a.cmake", "", "cmake");
+expect(check, "go.mod", "", "gomod");
+expect(check, "go.sum", "", "gomod");
+expect(check, "Cargo.lock", "", "toml");
+expect(check, "/home/u/.bashrc", "", "sh");
+expect(check, "/home/u/.zshrc", "", "sh");
+expect(check, "/home/u/.profile", "", "sh");
+expect(check, ".gitignore", "", "gitignore");
+expect(check, "a.d/.gitignore", "", "gitignore");
+expect(check, "a.d/Makefile", "", "makefile");
+expect(check, "COMMIT_EDITMSG", "", "gitcommit");
+expect(check, "git-rebase-todo", "", "gitrebase");
+expect(check, "x.diff", "", "diff");
+expect(check, "x.patch", "", "diff");
+expect(check, "x.html", "", "html");
+expect(check, "x.vue", "", "vue");
+expect(check, "x.svelte", "", "svelte");
+expect(check, "x.css", "", "css");
+expect(check, "x.scss", "", "scss");
+expect(check, "x.sql", "", "sql");
+expect(check, "x.tf", "", "hcl");
+expect(check, "x.proto", "", "protobuf");
+expect(check, "x.ini", "", "ini");
+expect(check, "x.csv", "", "csv");
+expect(check, "x.tex", "", "latex");
+expect(check, "notes.txt", "", "");
+expect(check, "noextension", "", "");
+expect(check, "tool", "#!/usr/bin/env python3", "python");
+expect(check, "tool", "#!/usr/bin/python3.11", "python");
+expect(check, "tool", "#!/bin/bash", "sh");
+expect(check, "tool", "#!/usr/bin/env -S node --flag", "javascript");
+expect(check, "tool", "#!/usr/bin/env ruby", "ruby");
+expect(check, "tool", "#!/usr/bin/perl -w", "perl");
+expect(check, "tool", "#!/usr/bin/awk -f", "awk");
+expect(check, "tool", "# vim: set ft=python :", "python");
+expect(check, "tool", "# -*- mode: ruby -*-", "ruby");
+expect(check, "tool", "<?php echo 1;", "php");
+expect(check, "tool", "<?xml version=\"1.0\"?>", "xml");
+expect(check, "main.c.bak", "", "c");
+expect(check, "config.toml.in", "", "toml");
+check.eq_str("alias py", SYN_detect.alias_of("py"), "python");
+check.eq_str("alias shell", SYN_detect.alias_of("shell"), "sh");
+check.eq_str("alias c++", SYN_detect.alias_of("c++"), "cpp");
+check.eq_str("alias by extension", SYN_detect.alias_of("rs"), "rust");
+check.eq_str("alias unknown", SYN_detect.alias_of("brainfuck"), "");
+check.finish();

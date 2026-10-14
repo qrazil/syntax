@@ -1,0 +1,12 @@
+// gitignore.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("gitignore");
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.start_comments.push("#");
+    return lang.build();
+}

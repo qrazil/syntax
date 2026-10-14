@@ -1,0 +1,21 @@
+// lua.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("lua");
+    lang.keywords = "and break do else elseif end for function goto if in local not or repeat return then until while";
+    lang.constants = "true false nil";
+    lang.builtins = "assert collectgarbage dofile error getmetatable ipairs load loadfile next pairs pcall print rawequal rawget rawlen rawset require select setmetatable tonumber tostring type unpack xpcall string table math io os coroutine debug utf8";
+    lang.specials = "self";
+    lang.decl_fn = "function";
+    lang.comment_leader = "-- ";
+    lang.indent_style = "keyword";
+    lang.has_caps = false;
+    lang.line_comment("--");
+    lang.block_comment("--[", "]", "L");
+    lang.string("[", "", "", "L");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

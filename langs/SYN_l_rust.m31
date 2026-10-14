@@ -1,0 +1,26 @@
+// rust.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("rust");
+    lang.keywords = "as async await break const continue crate dyn else enum extern fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait type unsafe use where while union macro_rules";
+    lang.types = "i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str String Vec Option Result Box Rc Arc HashMap HashSet BTreeMap BTreeSet VecDeque Cell RefCell Cow Path PathBuf OsString";
+    lang.constants = "true false None Some Ok Err";
+    lang.specials = "self";
+    lang.decl_fn = "fn";
+    lang.decl_type = "struct enum trait type union";
+    lang.comment_leader = "// ";
+    lang.has_bang_calls = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "n");
+    lang.string("br", "\"", "", "R");
+    lang.string("r", "\"", "", "R");
+    lang.string("b\"", "\"", "\\", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("b'", "'", "\\", "c");
+    lang.string("'", "'", "\\", "c");
+    lang.attr_open.push("#[");
+    lang.attr_open.push("#![");
+    return lang.build();
+}

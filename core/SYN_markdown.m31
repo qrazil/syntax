@@ -1,0 +1,454 @@
+// Markdown: one line at a time, with fenced code blocks handed to the
+// language their info string names (the engine scans the fence body with it
+// and keeps its state in the bits above this mode's own).
+//
+// State (own bits): 0 outside a fence, 1 inside a fence of unknown language,
+// 2 inside a fence whose language is injected (its id in bits 12..19).
+
+import core.SYN_class;
+import core.SYN_detect;
+import core.SYN_lang;
+import core.SYN_registry;
+import core.SYN_scanner;
+
+const int NORMAL = SYN_class.NORMAL;
+const int COMMENT = SYN_class.COMMENT;
+const int STRING = SYN_class.STRING;
+const int FUNCTION = SYN_class.FUNCTION;
+const int CONSTANT = SYN_class.CONSTANT;
+const int SPECIAL = SYN_class.SPECIAL;
+const int TITLE = SYN_class.TITLE;
+const int TYPE = SYN_class.TYPE;
+const int KEYWORD = SYN_class.KEYWORD;
+const int RAW = SYN_class.RAW;
+const int LINK = SYN_class.LINK;
+const int EMPHASIS = SYN_class.EMPHASIS;
+const int STRONG = SYN_class.STRONG;
+const int IN_FENCE = 1;
+const int IN_LANG = 2;
+
+bool is_word(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128 || (byte >= 48 && byte <= 57);
+}
+
+bool is_digit_byte(int byte) {
+    return byte >= 48 && byte <= 57;
+}
+
+void paint(List<int> classes, int from, int stop, int class_value) {
+    int limit = stop;
+    if (limit > classes.size()) {
+        limit = classes.size();
+    }
+    for (int index in from .. limit) {
+        classes[index] = class_value;
+    }
+}
+
+/// The language named by a fence's info string ("" when unknown), e.g. the
+/// "rust" of "```rust", "rs", "{.python}", "python title=x".
+str fence_language(str trimmed) {
+    int start = 0;
+    while (start < trimmed.size() && (trimmed.byte_at(start) == 96 || trimmed.byte_at(start) == 126)) {
+        start = start + 1;
+    }
+    str info = trimmed.substr(start, trimmed.size()).trim();
+    while (info.starts_with("{") || info.starts_with(".")) {
+        info = info.substr(1, info.size());
+    }
+    int stop = 0;
+    while (stop < info.size()) {
+        int byte = info.byte_at(stop);
+        if (byte == 32 || byte == 9 || byte == 44 || byte == 125 || byte == 123 || byte == 59) {
+            break;
+        }
+        stop = stop + 1;
+    }
+    str tag = info.substr(0, stop).to_lower();
+    if (tag.size() == 0) {
+        return "";
+    }
+    str name = SYN_detect.alias_of(tag);
+    if (name == "markdown") {
+        return "";
+    }
+    return name;
+}
+
+bool is_fence_line(str trimmed) {
+    return trimmed.starts_with("```") || trimmed.starts_with("~~~");
+}
+
+bool is_rule_line(str trimmed) {
+    if (trimmed.size() < 3) {
+        return false;
+    }
+    int marker = trimmed.byte_at(0);
+    if (marker != 45 && marker != 42 && marker != 95 && marker != 61) {
+        return false;
+    }
+    int count = 0;
+    for (int index in 0 .. trimmed.size()) {
+        int byte = trimmed.byte_at(index);
+        if (byte == marker) {
+            count = count + 1;
+        } else if (byte != 32 && byte != 9) {
+            return false;
+        }
+    }
+    return count >= 3;
+}
+
+// A table delimiter row: only | : - and spaces, with a dash and a pipe.
+bool is_table_delimiter(str trimmed) {
+    bool has_dash = false;
+    bool has_pipe = false;
+    for (int index in 0 .. trimmed.size()) {
+        int byte = trimmed.byte_at(index);
+        if (byte == 45) {
+            has_dash = true;
+        } else if (byte == 124) {
+            has_pipe = true;
+        } else if (byte != 58 && byte != 32 && byte != 9) {
+            return false;
+        }
+    }
+    return has_dash && has_pipe;
+}
+
+// The index just past the run of `byte` starting at `from`.
+int run_end(str line, int from, int byte) {
+    int index = from;
+    while (index < line.size() && line.byte_at(index) == byte) {
+        index = index + 1;
+    }
+    return index;
+}
+
+// Inline spans of [from, stop): code, links, images, autolinks, bare URLs,
+// emphasis (TYPE), strong (KEYWORD), strikethrough, HTML comments. Text that
+// matches nothing keeps the class painted before the call.
+void markdown_inline(List<int> classes, str line, int from, int stop) {
+    int index = from;
+    while (index < stop) {
+        int byte = line.byte_at(index);
+        int before = 0;
+        if (index > 0) {
+            before = line.byte_at(index - 1);
+        }
+        int next = 0;
+        if (index + 1 < line.size()) {
+            next = line.byte_at(index + 1);
+        }
+        if (byte == 92 && index + 1 < stop) {
+            index = index + 2;
+            continue;
+        }
+        if (byte == 96) {
+            int ticks = run_end(line, index, 96) - index;
+            int probe = index + ticks;
+            int found = -1;
+            while (probe < stop) {
+                if (line.byte_at(probe) == 96) {
+                    int length = run_end(line, probe, 96) - probe;
+                    if (length == ticks) {
+                        found = probe;
+                        break;
+                    }
+                    probe = probe + length;
+                } else {
+                    probe = probe + 1;
+                }
+            }
+            if (found >= 0) {
+                paint(classes, index, found + ticks, RAW);
+                index = found + ticks;
+            } else {
+                index = index + ticks;
+            }
+            continue;
+        }
+        if (byte == 60) {
+            if (line.substr(index, stop).starts_with("<!--")) {
+                int shut = line.substr(index, stop).index_of("-->").or(-1);
+                int end = stop;
+                if (shut >= 0) {
+                    end = index + shut + 3;
+                }
+                paint(classes, index, end, COMMENT);
+                index = end;
+                continue;
+            }
+            int shut = line.substr(index, stop).index_of(">").or(-1);
+            if (shut > 1) {
+                str inner = line.substr(index + 1, index + shut);
+                if (inner.starts_with("http://") || inner.starts_with("https://") || inner.starts_with("mailto:")) {
+                    paint(classes, index, index + shut + 1, LINK);
+                    index = index + shut + 1;
+                    continue;
+                }
+            }
+        }
+        if (byte == 91 || (byte == 33 && next == 91)) {
+            int open = index;
+            if (byte == 33) {
+                open = index + 1;
+            }
+            int depth = 0;
+            int shut = -1;
+            int probe = open;
+            while (probe < stop) {
+                int chr = line.byte_at(probe);
+                if (chr == 92) {
+                    probe = probe + 2;
+                    continue;
+                }
+                if (chr == 91) {
+                    depth = depth + 1;
+                } else if (chr == 93) {
+                    depth = depth - 1;
+                    if (depth == 0) {
+                        shut = probe;
+                        break;
+                    }
+                }
+                probe = probe + 1;
+            }
+            if (shut > 0 && shut + 1 < stop && (line.byte_at(shut + 1) == 40 || line.byte_at(shut + 1) == 91)) {
+                int closer = 41;
+                if (line.byte_at(shut + 1) == 91) {
+                    closer = 93;
+                }
+                int url_end = -1;
+                int url_scan = shut + 2;
+                int parens = 0;
+                while (url_scan < stop) {
+                    int chr = line.byte_at(url_scan);
+                    if (chr == 40 && closer == 41) {
+                        parens = parens + 1;
+                    } else if (chr == closer) {
+                        if (parens == 0) {
+                            url_end = url_scan;
+                            break;
+                        }
+                        parens = parens - 1;
+                    }
+                    url_scan = url_scan + 1;
+                }
+                if (url_end > 0) {
+                    paint(classes, index, shut + 1, LINK);
+                    paint(classes, shut + 1, url_end + 1, COMMENT);
+                    index = url_end + 1;
+                    continue;
+                }
+            }
+            if (shut > 0 && line.substr(open + 1, shut).trim().size() > 0) {
+                // [text] on its own: a shortcut reference link, or a task box
+                str word = line.substr(open + 1, shut);
+                if (word != " " && word != "x" && word != "X") {
+                    paint(classes, index, shut + 1, LINK);
+                    index = shut + 1;
+                    continue;
+                }
+            }
+            index = index + 1;
+            continue;
+        }
+        if (byte == 104 && (line.substr(index, stop).starts_with("http://") || line.substr(index, stop).starts_with("https://")) && !is_word(before)) {
+            int end = index;
+            while (end < stop && line.byte_at(end) != 32 && line.byte_at(end) != 41 && line.byte_at(end) != 62 && line.byte_at(end) != 9) {
+                end = end + 1;
+            }
+            paint(classes, index, end, LINK);
+            index = end;
+            continue;
+        }
+        if (byte == 126 && next == 126) {
+            int shut = line.substr(index + 2, stop).index_of("~~").or(-1);
+            if (shut > 0) {
+                paint(classes, index, index + 2 + shut + 2, COMMENT);
+                index = index + 2 + shut + 2;
+                continue;
+            }
+        }
+        if (byte == 42 || byte == 95) {
+            int length = run_end(line, index, byte) - index;
+            bool can_open = index + length < stop && line.byte_at(index + length) != 32 && line.byte_at(index + length) != 9;
+            if (byte == 95 && is_word(before) && before != 95) {
+                can_open = false;
+            }
+            if (can_open && length <= 3) {
+                // find the closing run of the same length
+                int probe = index + length;
+                int found = -1;
+                while (probe < stop) {
+                    int chr = line.byte_at(probe);
+                    if (chr == 92) {
+                        probe = probe + 2;
+                        continue;
+                    }
+                    if (chr == 96) {
+                        // skip a code span so `a*b` does not shut emphasis
+                        int ticks = run_end(line, probe, 96) - probe;
+                        int skip = line.substr(probe + ticks, stop).index_of(str.from_chars([96])).or(-1);
+                        if (skip >= 0) {
+                            probe = probe + ticks + skip + 1;
+                            continue;
+                        }
+                    }
+                    if (chr == byte) {
+                        int run = run_end(line, probe, byte) - probe;
+                        bool is_closing = run >= length && line.byte_at(probe - 1) != 32 && probe > index + length;
+                        if (is_closing && byte == 95 && probe + length < line.size() && is_word(line.byte_at(probe + length))) {
+                            is_closing = false;
+                        }
+                        if (is_closing) {
+                            found = probe;
+                            break;
+                        }
+                        probe = probe + run;
+                        continue;
+                    }
+                    probe = probe + 1;
+                }
+                if (found >= 0) {
+                    int class_value = EMPHASIS;
+                    if (length >= 2) {
+                        class_value = STRONG;
+                    }
+                    paint(classes, index, found + length, class_value);
+                    index = found + length;
+                    continue;
+                }
+            }
+            index = index + length;
+            continue;
+        }
+        index = index + 1;
+    }
+}
+
+// The classes of a line outside any fence.
+List<int> line_classes(str line, str trimmed) {
+    List<int> classes = [0; line.size()];
+    if (line.starts_with("#")) {
+        int hashes = run_end(line, 0, 35);
+        if (hashes <= 6 && (hashes == line.size() || line.byte_at(hashes) == 32)) {
+            paint(classes, 0, line.size(), TITLE);
+            paint(classes, 0, hashes, SPECIAL);
+            markdown_inline(classes, line, hashes, line.size());
+            return classes;
+        }
+    }
+    if (is_rule_line(trimmed) || is_table_delimiter(trimmed)) {
+        paint(classes, 0, line.size(), SPECIAL);
+        return classes;
+    }
+    int start = 0;
+    while (start < line.size() && (line.byte_at(start) == 32 || line.byte_at(start) == 9)) {
+        start = start + 1;
+    }
+    if (start < line.size() && line.byte_at(start) == 62) {
+        int index = start;
+        while (index < line.size() && (line.byte_at(index) == 62 || line.byte_at(index) == 32)) {
+            if (line.byte_at(index) == 62) {
+                classes[index] = SPECIAL;
+            }
+            index = index + 1;
+        }
+        paint(classes, index, line.size(), COMMENT);
+        markdown_inline(classes, line, index, line.size());
+        return classes;
+    }
+    if (start < line.size() && (line.byte_at(start) == 45 || line.byte_at(start) == 42 || line.byte_at(start) == 43) && start + 1 < line.size() && line.byte_at(start + 1) == 32) {
+        classes[start] = SPECIAL;
+        start = start + 2;
+    } else if (start < line.size() && is_digit_byte(line.byte_at(start))) {
+        int stop = start;
+        while (stop < line.size() && is_digit_byte(line.byte_at(stop))) {
+            stop = stop + 1;
+        }
+        if (stop < line.size() && (line.byte_at(stop) == 46 || line.byte_at(stop) == 41) && stop + 1 < line.size() && line.byte_at(stop + 1) == 32) {
+            paint(classes, start, stop + 1, SPECIAL);
+            start = stop + 2;
+        }
+    }
+    // task list box: "- [ ] x" / "- [x] x"
+    if (start + 3 <= line.size() && line.byte_at(start) == 91 && line.byte_at(start + 2) == 93 && (start + 3 == line.size() || line.byte_at(start + 3) == 32)) {
+        int mark = line.byte_at(start + 1);
+        if (mark == 32 || mark == 120 || mark == 88) {
+            paint(classes, start, start + 3, CONSTANT);
+            start = start + 3;
+        }
+    }
+    markdown_inline(classes, line, start, line.size());
+    if (trimmed.starts_with("|")) {
+        for (int index in 0 .. line.size()) {
+            if (line.byte_at(index) == 124 && classes[index] == NORMAL) {
+                classes[index] = SPECIAL;
+            }
+        }
+    }
+    return classes;
+}
+
+/// Scan one markdown line.
+pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    int own = state & 4095;
+    str trimmed = line.trim();
+    bool is_fence = is_fence_line(trimmed);
+    scanner.state = 0;
+    if (own == IN_FENCE) {
+        if (is_fence) {
+            scanner.emit(0, size, SPECIAL);
+        } else {
+            scanner.emit(0, size, RAW);
+            scanner.state = IN_FENCE;
+        }
+        return;
+    }
+    if (own == IN_LANG) {
+        if (is_fence) {
+            scanner.emit(0, size, SPECIAL);
+            return;
+        }
+        scanner.inj_lang = SYN_registry.name_of((state >> 12) & 255);
+        scanner.inj_from = 0;
+        scanner.inj_to = size;
+        scanner.inj_state = state >> 20;
+        scanner.state = IN_LANG | (state & 0xFF000);
+        return;
+    }
+    if (is_fence) {
+        str name = fence_language(trimmed);
+        int id = SYN_registry.id_of(name);
+        int lead = 0;
+        while (lead < size && is_space(line.byte_at(lead))) {
+            lead = lead + 1;
+        }
+        int marks = run_end(line, lead, trimmed.byte_at(0));
+        scanner.emit(lead, marks, SPECIAL);
+        if (id > 0) {
+            scanner.state = IN_LANG | (id << 12);
+        } else {
+            scanner.state = IN_FENCE;
+        }
+        scanner.emit(marks, size, TYPE);
+        return;
+    }
+    List<int> classes = line_classes(line, trimmed);
+    int position = 0;
+    while (position < size) {
+        int stop = position + 1;
+        while (stop < size && classes[stop] == classes[position]) {
+            stop = stop + 1;
+        }
+        scanner.emit(position, stop, classes[position]);
+        position = stop;
+    }
+}
+
+bool is_space(int byte) {
+    return byte == 32 || byte == 9;
+}

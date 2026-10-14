@@ -1,0 +1,14 @@
+// erlang.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("erlang");
+    lang.keywords = "after and andalso band begin bnot bor bsl bsr bxor case catch cond div end fun if let not of or orelse receive rem try when xor module export import include define ifdef ifndef endif spec type record behaviour";
+    lang.constants = "true false undefined ok error";
+    lang.comment_leader = "% ";
+    lang.line_comment("%");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

@@ -1,0 +1,60 @@
+// Highlighter timings. Not a pass/fail test (a time is not a fixture): it
+// prints what a cold highlight of a large file, an edit near its top and an
+// edit in its middle cost, for docs/PERF.md.
+//
+//   LANGC=... M31_ROOT=... bash tests/test.sh --bench
+
+import date;
+import core.SYN_highlight;
+
+List<str> sample = ["#include <stdio.h>", "static int count(const char *text, int limit) { /* scan */", "    int total = 0;", "    for (int index = 0; index < limit; index = index + 1) {", "        if (text[index] == '\\n') { total = total + 1; } // line", "    }", "    printf(\"%d lines\\n\", total);", "    return total;", "}", ""];
+
+int millis(int started) {
+    return (date.now_ns() - started) / 1000000;
+}
+
+int touch(SYN_highlight.Highlighter highlighter, int count) {
+    // what a viewport redraw costs: tokenize `count` lines from the middle
+    int total = 0;
+    int first = highlighter.lines.size() / 2;
+    for (int row in first .. first + count) {
+        total = total + highlighter.spans(row).size();
+    }
+    return total;
+}
+
+List<str> lines = [];
+for (int round in 0 .. 10000) {
+    for (str line in sample) {
+        lines.push(line);
+    }
+}
+print("lines: " + str(lines.size()));
+SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: "c");
+highlighter.set_lines(lines);
+int started = date.now_ns();
+highlighter.state_at(lines.size());
+print("cold, states of all lines: " + str(millis(started)) + " ms");
+started = date.now_ns();
+int spans = touch(highlighter, 60);
+print("a 60-line viewport (warm): " + str(millis(started)) + " ms, " + str(spans / 3) + " tokens");
+lines[1] = "/* edited";
+started = date.now_ns();
+List<int> range = highlighter.update(1, lines);
+print("edit at line 1 (opens a comment): " + str(millis(started)) + " ms, redraw lines " + str(range[0]) + ".." + str(range[1]));
+lines[1] = "static int count(const char *text, int limit) {";
+started = date.now_ns();
+range = highlighter.update(1, lines);
+print("edit at line 1 (reverts it): " + str(millis(started)) + " ms, redraw lines " + str(range[0]) + ".." + str(range[1]));
+int middle = lines.size() / 2 + 3;
+lines[middle] = "int edited = 1;";
+started = date.now_ns();
+range = highlighter.update(middle, lines);
+print("edit in the middle: " + str(millis(started)) + " ms, redraw lines " + str(range[0]) + ".." + str(range[1]));
+lines[middle] = "/* now open";
+started = date.now_ns();
+range = highlighter.update(middle, lines);
+print("middle edit that opens a comment: " + str(millis(started)) + " ms, redraw lines " + str(range[0]) + ".." + str(range[1]));
+started = date.now_ns();
+highlighter.state_at(lines.size());
+print("states after it: " + str(millis(started)) + " ms");

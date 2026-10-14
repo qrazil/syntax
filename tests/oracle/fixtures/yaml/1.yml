@@ -1,0 +1,120 @@
+# homelab apps — every independent app in ONE project.
+#
+#   cd ~/homelab/apps && podman compose up -d      # or: ../homelab.sh up apps
+#
+# The core identity/memory/bridge stack lives in ../docker-compose.yml and is
+# managed by ../homelab.sh. Nothing here depends on it; these are standalone
+# apps grouped together only so they start and stop as a unit.
+#
+# Each app's original compose file is kept in place under ./<name>/ as the
+# reference copy. This file is the one that runs. Two rules were applied when
+# merging them:
+#
+#   1. Relative paths are re-based to THIS directory. podman-compose merges
+#      included/multi-file services into one project without re-rooting their
+#      relative paths, so `./config` in books/ had to become `./books/config`.
+#   2. Named volumes are declared `external` under their ORIGINAL project-
+#      prefixed names (trillium_trillium, gitea_*). Volume names are normally
+#      prefixed with the project name, so merging these into the `apps` project
+#      would have silently created new empty volumes and booted Trilium with
+#      none of its existing data.
+#
+# Service names had to be unique across the merged project: gitea's `server`
+# and rustypaste's `server` collided, and gitea's `db` was too generic to keep.
+
+x-podman:
+  in_pod: false
+
+services:
+  # ── notes ──────────────────────────────────────────────────────────────────
+  trilium:
+    image: docker.io/triliumnext/notes:stable
+    container_name: trilium
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    volumes:
+      - trillium_trillium:/home/node/trilium-data
+
+  # ── git forge ──────────────────────────────────────────────────────────────
+  # Renamed from `server` (collided with rustypaste's `server`). The DB host
+  # below tracks the `db` -> `gitea-db` rename — it must stay in sync.
+  gitea:
+    image: docker.gitea.com/gitea:latest-rootless
+    container_name: gitea
+    restart: always
+    environment:
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=gitea
+    volumes:
+      - gitea_gitea-data:/var/lib/gitea
+      - gitea_gitea-custom:/var/lib/gitea/custom
+      - gitea_gitea-config:/etc/gitea
+    ports:
+      # 3001 both sides is correct and verified: this instance's app.ini sets
+      # HTTP_PORT=3001 (not the image's 3000 default), ROOT_URL=https://git.meghraj.uk/.
+      - "3001:3001"
+      - "2222:2222"
+    depends_on:
+      - gitea-db
+
+  gitea-db:
+    image: docker.io/library/postgres:14
+    container_name: gitea-db
+    restart: always
+    environment:
+      - POSTGRES_USER=gitea
+      - POSTGRES_PASSWORD=gitea
+      - POSTGRES_DB=gitea
+    volumes:
+      - gitea_postgres:/var/lib/postgresql/data
+
+  # ── media ──────────────────────────────────────────────────────────────────
+  # config/ and cache/ are re-based to ./jellyfin/, NOT ~/jellyfin/ as the
+  # original compose said. The real 141M library (jellyfin.db, metadata/, root/)
+  # was moved into apps/jellyfin/ by the Jul 2026 reorg and the path was never
+  # updated; ~/jellyfin/ only ever gets a blank first-run instance.
+  jellyfin:
+    image: docker.io/jellyfin/jellyfin
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - 8096:8096/tcp
+      - 7359:7359/udp
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - type: bind
+        source: /run/media/media
+        target: /media
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://example.com
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  # ── books ──────────────────────────────────────────────────────────────────
+  # ./config and ./metadata were relative to books/ — re-based below.
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    restart: unless-stopped
+    ports:
+      - 13378:80
+    volumes:
+      - ./books/config:/config
+      - ./books/metadata:/metadata
+      - ${MEDIA_SHARE}:/books
+    environment:
+      - TZ=America/Toronto
+
+  # ── reading server ─────────────────────────────────────────────────────────
+  # Neo Reader — self-hosted manga/comic/ebook reader (Rust/Axum backend +
+  # React/Vite frontend). Built from ./neo_reader/Dockerfile, a multi-stage
+  # build: it compiles the Vite frontend, then the Rust backend which serves the
+  # built frontend as static files and the API on one port. Relative volume
+  # paths re-based to ./neo_reader/ per rule #1 above.
+  #
+  # NOTE: these four mounts mirror the app's own compose, so the container's

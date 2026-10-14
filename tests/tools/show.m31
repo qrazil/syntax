@@ -1,0 +1,53 @@
+// Print sample lines with the class mask the highlighter gives them, to
+// review and freeze as test expectations (tests/tools/snapgen.py).
+//
+//   show SAMPLES        SAMPLES: blocks that start with `%% LANGUAGE`
+//
+// Output per block: `%% LANGUAGE`, then for each line the source and the
+// mask (letters as in tests/SYN_check.m31) ended by `|`.
+
+import io;
+import os;
+import core.SYN_highlight;
+import tests.SYN_check;
+
+List<str> argv = os.arguments();
+str text = "";
+match (io.read(argv[1])) {
+    case Ok(str body_text): {
+        text = body_text;
+    }
+    case Err(_): {
+        print("cannot read " + argv[1]);
+    }
+}
+List<List<str>> blocks = [];
+List<str> names = [];
+List<str> block = [];
+for (str line in text.split("\n")) {
+    if (line.starts_with("%% ")) {
+        if (names.size() > 0) {
+            blocks.push(block);
+        }
+        names.push(line.substr(3, line.size()));
+        block = [];
+    } else {
+        block.push(line);
+    }
+}
+if (names.size() > 0) {
+    blocks.push(block);
+}
+for (int index in 0 .. names.size()) {
+    print("%% " + names[index]);
+    SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: names[index]);
+    List<str> body = blocks[index];
+    if (body.size() > 0 && body[body.size() - 1] == "") {
+        body.pop();
+    }
+    highlighter.set_lines(body);
+    for (int row in 0 .. body.size()) {
+        print(body[row]);
+        print(SYN_check.mask_of(highlighter, row) + "|");
+    }
+}

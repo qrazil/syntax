@@ -1,0 +1,372 @@
+// Light structure on the token stream: no parser, only what the tokenizer
+// already knows, so a bracket in a string or a comment is never a bracket.
+//
+//   match_bracket(highlighter, line, col)   [line, col] of the partner, [] if none
+//   comment_leader(language)      "// ", "# ", "-- ": what `gc` inserts
+//   is_commented(leader, text) / comment_line(leader, text) / uncomment_line(leader, text)
+//   is_block_opener(highlighter, line)          the line ends a block header: indent the next
+//   is_block_closer(highlighter, line)         the line starts with a closer: outdent it
+//   indent_delta(highlighter, line)         opens - closes, for auto-indent
+//   symbols(highlighter)                    functions and types, for an outline
+//
+// All of them take the `Highlighter` the buffer already has, so the classes
+// of a line are the ones it draws with.
+
+import core.SYN_class;
+import core.SYN_code;
+import core.SYN_engine;
+import core.SYN_highlight;
+import core.SYN_lang;
+import core.SYN_registry;
+
+/// One declaration found by `symbols`.
+pub type Symbol {
+    pub str name = "";
+    pub str kind = "";
+    pub int line = 0;
+    pub int col = 0;
+}
+
+int partner_of(int byte) {
+    if (byte == 40) {
+        return 41;
+    }
+    if (byte == 41) {
+        return 40;
+    }
+    if (byte == 91) {
+        return 93;
+    }
+    if (byte == 93) {
+        return 91;
+    }
+    if (byte == 123) {
+        return 125;
+    }
+    if (byte == 125) {
+        return 123;
+    }
+    return -1;
+}
+
+bool is_code_class(int class_value) {
+    return class_value != SYN_class.COMMENT && class_value != SYN_class.STRING && class_value != SYN_class.RAW && class_value != SYN_class.SPECIAL && class_value != SYN_class.LINK;
+}
+
+/// The bracket matching the one at (`line`, `col`), as [line, col]; empty
+/// when the byte there is not a bracket, is inside a string or comment, or
+/// has no partner within 20000 lines. Brackets inside strings and comments
+/// are skipped over.
+pub List<int> match_bracket(SYN_highlight.Highlighter highlighter, int line, int col) {
+    if (line < 0 || line >= highlighter.lines.size() || col < 0 || col >= highlighter.lines[line].size()) {
+        return [];
+    }
+    int here = highlighter.lines[line].byte_at(col);
+    int partner = partner_of(here);
+    if (partner < 0) {
+        return [];
+    }
+    List<int> classes = highlighter.classes(line);
+    if (col < classes.size() && !is_code_class(classes[col])) {
+        return [];
+    }
+    bool is_forward = here == 40 || here == 91 || here == 123;
+    int depth = 0;
+    int row = line;
+    int limit = 20000;
+    while (row >= 0 && row < highlighter.lines.size() && limit > 0) {
+        str text = highlighter.lines[row];
+        List<int> row_classes = highlighter.classes(row);
+        int position = 0;
+        int stop = text.size();
+        int step = 1;
+        if (!is_forward) {
+            position = text.size() - 1;
+            stop = -1;
+            step = -1;
+        }
+        if (row == line) {
+            position = col + step;
+        }
+        while (position != stop && position >= 0 && position < text.size()) {
+            int byte = text.byte_at(position);
+            if ((byte == here || byte == partner) && (position >= row_classes.size() || is_code_class(row_classes[position]))) {
+                if (byte == here) {
+                    depth = depth + 1;
+                } else if (depth == 0) {
+                    return [row, position];
+                } else {
+                    depth = depth - 1;
+                }
+            }
+            position = position + step;
+        }
+        if (is_forward) {
+            row = row + 1;
+        } else {
+            row = row - 1;
+        }
+        limit = limit - 1;
+    }
+    return [];
+}
+
+/// The comment leader of a language ("// ", "# ", "-- "), or "" when it has
+/// none (JSON, plain text): what a line-comment toggle writes.
+pub str comment_leader(str language) {
+    if (language == "") {
+        return "";
+    }
+    return SYN_registry.load(language).comment_leader;
+}
+
+/// Is `text` (ignoring indentation) a line comment with this leader?
+pub bool is_commented(str leader, str text) {
+    if (leader == "") {
+        return false;
+    }
+    str bare = leader.trim();
+    return text.trim().starts_with(bare);
+}
+
+/// `text` with the leader written after its indentation. Blank lines stay.
+pub str comment_line(str leader, str text) {
+    if (leader == "" || text.trim().size() == 0) {
+        return text;
+    }
+    int position = 0;
+    while (position < text.size() && (text.byte_at(position) == 32 || text.byte_at(position) == 9)) {
+        position = position + 1;
+    }
+    return text.substr(0, position) + leader + text.substr(position, text.size());
+}
+
+/// `text` with the leader (and one space after it) removed.
+pub str uncomment_line(str leader, str text) {
+    if (leader == "") {
+        return text;
+    }
+    int position = 0;
+    while (position < text.size() && (text.byte_at(position) == 32 || text.byte_at(position) == 9)) {
+        position = position + 1;
+    }
+    str bare = leader.trim();
+    if (!text.substr(position, text.size()).starts_with(bare)) {
+        return text;
+    }
+    int from = position + bare.size();
+    if (from < text.size() && text.byte_at(from) == 32 && leader.ends_with(" ")) {
+        from = from + 1;
+    }
+    return text.substr(0, position) + text.substr(from, text.size());
+}
+
+// the last byte of the line that is is_code, or -1
+int last_code(SYN_highlight.Highlighter highlighter, int line) {
+    str text = highlighter.lines[line];
+    List<int> classes = highlighter.classes(line);
+    int position = text.size() - 1;
+    while (position >= 0) {
+        int byte = text.byte_at(position);
+        bool is_code = position >= classes.size() || is_code_class(classes[position]);
+        if (is_code && byte != 32 && byte != 9 && byte != 13) {
+            return position;
+        }
+        position = position - 1;
+    }
+    return -1;
+}
+
+bool is_word_ending(str text, int last, str word) {
+    int from = last + 1 - word.size();
+    if (from < 0 || text.substr(from, last + 1) != word) {
+        return false;
+    }
+    if (from > 0) {
+        int before = text.byte_at(from - 1);
+        if ((before >= 65 && before <= 90) || (before >= 97 && before <= 122) || (before >= 48 && before <= 57) || before == 95) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// Does `line` end in a block opener, so the next line is indented? By the
+/// language's style: an open bracket (`{ ( [`); for colon languages a
+/// trailing `:`; for keyword languages `then`, `do`, `begin`, `else`...
+pub bool is_block_opener(SYN_highlight.Highlighter highlighter, int line) {
+    if (line < 0 || line >= highlighter.lines.size() || highlighter.language == "") {
+        return false;
+    }
+    int last = last_code(highlighter, line);
+    if (last < 0) {
+        return false;
+    }
+    str text = highlighter.lines[line];
+    int byte = text.byte_at(last);
+    if (byte == 123 || byte == 40 || byte == 91) {
+        return true;
+    }
+    SYN_lang.Lang lang = SYN_engine.lang_for(highlighter.scanner, highlighter.language);
+    if (lang.indent_style == "colon" || lang.indent_style == "offside") {
+        return byte == 58;
+    }
+    if (lang.indent_style == "keyword") {
+        return is_word_ending(text, last, "then") || is_word_ending(text, last, "do") || is_word_ending(text, last, "begin") || is_word_ending(text, last, "else") || is_word_ending(text, last, "in") || is_word_ending(text, last, "function") || is_word_ending(text, last, "repeat") || is_word_ending(text, last, "{");
+    }
+    return false;
+}
+
+/// Does `line` begin with a closing bracket or block-ending keyword, so it
+/// is outdented one level?
+pub bool is_block_closer(SYN_highlight.Highlighter highlighter, int line) {
+    if (line < 0 || line >= highlighter.lines.size() || highlighter.language == "") {
+        return false;
+    }
+    str text = highlighter.lines[line];
+    List<int> classes = highlighter.classes(line);
+    int position = 0;
+    while (position < text.size() && (text.byte_at(position) == 32 || text.byte_at(position) == 9)) {
+        position = position + 1;
+    }
+    if (position >= text.size()) {
+        return false;
+    }
+    if (position < classes.size() && !is_code_class(classes[position])) {
+        return false;
+    }
+    int byte = text.byte_at(position);
+    if (byte == 125 || byte == 41 || byte == 93) {
+        return true;
+    }
+    SYN_lang.Lang lang = SYN_engine.lang_for(highlighter.scanner, highlighter.language);
+    if (lang.indent_style == "keyword") {
+        str rest = text.substr(position, text.size());
+        List<str> enders = ["end", "fi", "done", "esac", "else", "elif", "elseif", "until", "endif", "endfor", "endwhile", "endfunction"];
+        for (str word in enders) {
+            if (rest.starts_with(word)) {
+                int next = word.size();
+                if (next >= rest.size() || !SYN_code.is_alnum(rest.byte_at(next))) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/// +1 when the line opens a block, -1 when it closes one, 0 for both or
+/// neither: how much the indentation of the line after it changes relative to
+/// this line's own.
+pub int indent_delta(SYN_highlight.Highlighter highlighter, int line) {
+    int out = 0;
+    if (is_block_opener(highlighter, line)) {
+        out = out + 1;
+    }
+    if (is_block_closer(highlighter, line)) {
+        out = out - 1;
+    }
+    return out;
+}
+
+bool is_ident_byte(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || (byte >= 48 && byte <= 57) || byte == 95 || byte >= 128;
+}
+
+/// Functions and types declared in the buffer, in order: a keyword the
+/// language marks as a declaration (`fn`, `def`, `class`...) followed by a
+/// name; and, for C-like languages (`symbol_style` "c"), a `type name(...)`
+/// header at the language's declaration depth. A heuristic over tokens; a
+/// declaration split across lines is missed.
+pub List<Symbol> symbols(SYN_highlight.Highlighter highlighter) {
+    List<Symbol> out = [];
+    if (highlighter.language == "") {
+        return out;
+    }
+    SYN_lang.Lang lang = SYN_engine.lang_for(highlighter.scanner, highlighter.language);
+    int depth = 0;
+    for (int row in 0 .. highlighter.lines.size()) {
+        str text = highlighter.lines[row];
+        List<int> classes = highlighter.classes(row);
+        // keyword + name
+        List<int> spans = highlighter.spans(row);
+        int step = 0;
+        int depth_at_start = depth;
+        while (step + 2 < spans.size()) {
+            int from = spans[step];
+            int upto = spans[step + 1];
+            int cls = spans[step + 2];
+            if (cls == SYN_class.KEYWORD) {
+                int entry = lang.lookup(text, from, upto);
+                int decl = (entry >> 8) & 3;
+                if (decl != 0) {
+                    int position = upto;
+                    while (position < text.size() && (text.byte_at(position) == 32 || text.byte_at(position) == 9)) {
+                        position = position + 1;
+                    }
+                    int stop = position;
+                    while (stop < text.size() && (is_ident_byte(text.byte_at(stop)) || (text.byte_at(stop) == 46 && stop > position))) {
+                        stop = stop + 1;
+                    }
+                    if (stop > position && position > upto - 0) {
+                        Symbol found = Symbol();
+                        found.name = text.substr(position, stop);
+                        found.line = row;
+                        found.col = position;
+                        found.kind = "type";
+                        if (decl == SYN_lang.DECL_FN) {
+                            found.kind = "function";
+                        }
+                        out.push(found);
+                    }
+                }
+            }
+            step = step + 3;
+        }
+        if (lang.symbol_style == "c") {
+            // a header at the declaration depth: words, then name(
+            if (depth_at_start <= lang.symbol_depth && text.size() > 0 && text.byte_at(0) != 35) {
+                step = 0;
+                while (step + 2 < spans.size()) {
+                    if (spans[step + 2] == SYN_class.CALL) {
+                        int from = spans[step];
+                        bool is_header = from > 0;
+                        bool has_word_before = false;
+                        for (int position in 0 .. from) {
+                            int byte = text.byte_at(position);
+                            if (is_ident_byte(byte)) {
+                                has_word_before = true;
+                            } else if (byte != 32 && byte != 9 && byte != 42 && byte != 38 && byte != 58 && byte != 60 && byte != 62 && byte != 44 && byte != 126) {
+                                is_header = false;
+                            }
+                        }
+                        str tail = text.trim();
+                        if (is_header && has_word_before && !tail.ends_with(";") && !tail.starts_with("return") && !tail.starts_with("else") && !tail.starts_with("if") && !tail.starts_with("}")) {
+                            Symbol found = Symbol();
+                            found.name = text.substr(from, spans[step + 1]);
+                            found.line = row;
+                            found.col = from;
+                            found.kind = "function";
+                            out.push(found);
+                        }
+                        break;
+                    }
+                    step = step + 3;
+                }
+            }
+        }
+        // brace depth for the next line, over code bytes only
+        for (int position in 0 .. text.size()) {
+            if (position < classes.size() && !is_code_class(classes[position])) {
+                continue;
+            }
+            int byte = text.byte_at(position);
+            if (byte == 123) {
+                depth = depth + 1;
+            } else if (byte == 125 && depth > 0) {
+                depth = depth - 1;
+            }
+        }
+    }
+    return out;
+}

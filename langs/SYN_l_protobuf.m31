@@ -1,0 +1,17 @@
+// Protocol Buffers.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("protobuf");
+    lang.keywords = "syntax package import option message enum service rpc returns stream oneof map extend extensions reserved repeated optional required public weak to max";
+    lang.types = "double float int32 int64 uint32 uint64 sint32 sint64 fixed32 fixed64 sfixed32 sfixed64 bool string bytes";
+    lang.constants = "true false";
+    lang.decl_type = "message enum service";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

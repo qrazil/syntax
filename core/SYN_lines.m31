@@ -1,0 +1,177 @@
+// Line-oriented formats: diffs, git commit messages and rebase todo lists,
+// and YAML block scalars (a `|` or `>` whose indented body is text).
+
+import core.SYN_class;
+import core.SYN_code;
+import core.SYN_lang;
+import core.SYN_scanner;
+
+bool is_space(int byte) {
+    return byte == 32 || byte == 9 || byte == 13;
+}
+
+int indent_of(str line) {
+    int position = 0;
+    while (position < line.size() && is_space(line.byte_at(position))) {
+        position = position + 1;
+    }
+    return position;
+}
+
+bool is_blank(str line) {
+    return indent_of(line) == line.size();
+}
+
+/// A unified (or context) diff, one line at a time. State 1: inside a hunk.
+pub void scan_diff(SYN_scanner.Scanner scanner, str line, int state) {
+    int size = line.size();
+    scanner.state = state & 15;
+    if (size == 0) {
+        return;
+    }
+    int byte = line.byte_at(0);
+    if (line.starts_with("diff ") || line.starts_with("index ") || line.starts_with("new file") || line.starts_with("deleted file") || line.starts_with("similarity ") || line.starts_with("rename ") || line.starts_with("old mode") || line.starts_with("new mode") || line.starts_with("Binary files")) {
+        scanner.emit(0, size, SYN_class.KEYWORD);
+        scanner.state = 0;
+        return;
+    }
+    if (state == 0 && (line.starts_with("--- ") || line.starts_with("+++ "))) {
+        scanner.emit(0, size, SYN_class.KEYWORD);
+        return;
+    }
+    if (byte == 64 && line.starts_with("@@")) {
+        int stop = line.substr(2, size).index_of("@@").or(-1);
+        if (stop >= 0) {
+            scanner.emit(0, stop + 4, SYN_class.ATTRIBUTE);
+            scanner.emit(stop + 4, size, SYN_class.FUNCTION);
+        } else {
+            scanner.emit(0, size, SYN_class.ATTRIBUTE);
+        }
+        scanner.state = 1;
+        return;
+    }
+    if (byte == 43 || byte == 62) {
+        scanner.emit(0, size, SYN_class.ADDED);
+        return;
+    }
+    if (byte == 45 || byte == 60 || byte == 33) {
+        scanner.emit(0, size, SYN_class.REMOVED);
+        return;
+    }
+    if (byte == 92) {
+        scanner.emit(0, size, SYN_class.COMMENT);
+        return;
+    }
+}
+
+/// A git commit message: `#` comment lines, `Key: value` trailers, and a
+/// subject on the first line.
+pub void scan_gitcommit(SYN_scanner.Scanner scanner, str line, int state) {
+    int size = line.size();
+    scanner.state = 1;
+    if (size > 0 && line.byte_at(0) == 35) {
+        scanner.emit(0, size, SYN_class.COMMENT);
+        return;
+    }
+    if (state == 0 && size > 0) {
+        scanner.emit(0, size, SYN_class.TITLE);
+        return;
+    }
+    int colon = line.index_of(": ").or(-1);
+    if (colon > 0 && colon < 40 && !is_space(line.byte_at(0))) {
+        bool is_plain = true;
+        for (int index in 0 .. colon) {
+            int byte = line.byte_at(index);
+            if (byte == 32) {
+                is_plain = false;
+            }
+        }
+        if (is_plain) {
+            scanner.emit(0, colon, SYN_class.PROPERTY);
+        }
+    }
+    if (line.starts_with("diff --git") || line.starts_with("@@")) {
+        scanner.state = 1;
+    }
+}
+
+/// A `git rebase -i` todo list.
+pub void scan_gitrebase(SYN_scanner.Scanner scanner, str line, int state) {
+    int size = line.size();
+    scanner.state = 0;
+    if (size > 0 && line.byte_at(0) == 35) {
+        scanner.emit(0, size, SYN_class.COMMENT);
+        return;
+    }
+    int word = 0;
+    while (word < size && line.byte_at(word) != 32) {
+        word = word + 1;
+    }
+    str command = line.substr(0, word);
+    if (command.size() == 0) {
+        return;
+    }
+    bool is_known = command == "pick" || command == "p" || command == "reword" || command == "r" || command == "edit" || command == "e" || command == "squash" || command == "s" || command == "fixup" || command == "f" || command == "exec" || command == "x" || command == "break" || command == "b" || command == "drop" || command == "d" || command == "label" || command == "l" || command == "reset" || command == "t" || command == "merge" || command == "m" || command == "update-ref" || command == "u";
+    if (!is_known) {
+        return;
+    }
+    scanner.emit(0, word, SYN_class.KEYWORD);
+    int from = word;
+    while (from < size && line.byte_at(from) == 32) {
+        from = from + 1;
+    }
+    int stop = from;
+    while (stop < size && line.byte_at(stop) != 32) {
+        stop = stop + 1;
+    }
+    if (command != "exec" && command != "x" && stop > from) {
+        scanner.emit(from, stop, SYN_class.CONSTANT);
+    }
+}
+
+/// YAML: the code scanner, plus block scalars. State 1 in a block scalar,
+/// with the indentation of the line that introduced it in bits 12...
+pub void scan_yaml(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    if ((state & 15) == 1) {
+        int base = state >> 12;
+        if (is_blank(line) || indent_of(line) > base) {
+            scanner.emit(0, size, SYN_class.STRING);
+            scanner.state = state;
+            return;
+        }
+        SYN_code.scan(scanner, lang, line, 0);
+    } else {
+        SYN_code.scan(scanner, lang, line, 0);
+    }
+    if (scanner.state != 0) {
+        return;
+    }
+    // does the line end in a block scalar indicator?
+    int finish = size;
+    while (finish > 0 && is_space(line.byte_at(finish - 1))) {
+        finish = finish - 1;
+    }
+    int begin = finish;
+    while (begin > 0 && (line.byte_at(begin - 1) == 45 || line.byte_at(begin - 1) == 43 || (line.byte_at(begin - 1) >= 48 && line.byte_at(begin - 1) <= 57))) {
+        begin = begin - 1;
+    }
+    if (begin > 0 && begin <= finish && (line.byte_at(begin - 1) == 124 || line.byte_at(begin - 1) == 62) && (begin - 1 == 0 || is_space(line.byte_at(begin - 2)))) {
+        // the indicator must not sit inside a comment or a string
+        int covered = 0;
+        int position = 0;
+        while (position + 2 < scanner.spans.size()) {
+            if (scanner.spans[position] <= begin - 1 && scanner.spans[position + 1] > begin - 1) {
+                covered = scanner.spans[position + 2];
+            }
+            position = position + 3;
+        }
+        if (covered != SYN_class.COMMENT && covered != SYN_class.STRING) {
+            int base = indent_of(line);
+            if (line.substr(base, size).starts_with("- ")) {
+                base = base + 1;
+            }
+            scanner.state = 1 | (base << 12);
+        }
+    }
+}

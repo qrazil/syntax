@@ -1,0 +1,143 @@
+// Which language a buffer is: by an explicit modeline, then by file name and
+// extension, then by a `#!` interpreter.
+//
+//   language_of(path, first_line)   "c", "rust", ...; "" when unknown
+//   alias_of(tag)                   the language a name or alias stands for
+//                                   ("py", "rs", "shell", "c++"); "" if none
+
+import core.SYN_tables;
+
+str base_of(str path) {
+    int slash = -1;
+    for (int index in 0 .. path.size()) {
+        if (path.byte_at(index) == 47) {
+            slash = index;
+        }
+    }
+    return path.substr(slash + 1, path.size());
+}
+
+// the part of a base name after its last dot ("" when there is none; a
+// leading dot counts, so ".bashrc" is "bashrc")
+str extension_of(str base) {
+    int dot = -1;
+    for (int index in 0 .. base.size()) {
+        if (base.byte_at(index) == 46) {
+            dot = index;
+        }
+    }
+    if (dot < 0 || dot == base.size() - 1) {
+        return "";
+    }
+    return base.substr(dot + 1, base.size()).to_lower();
+}
+
+/// The language a name, alias or file extension stands for, "" when none.
+pub str alias_of(str tag) {
+    str lower = tag.to_lower();
+    str found = SYN_tables.ALIAS.get(lower).or("");
+    if (found != "") {
+        return found;
+    }
+    return SYN_tables.EXT.get(lower).or("");
+}
+
+str interpreter_of(str line) {
+    // "#!/usr/bin/env -S python3 -u" and "#!/bin/sh" -> "python3", "sh"
+    List<str> words = line.substr(2, line.size()).trim().split(" ");
+    if (words.size() == 0) {
+        return "";
+    }
+    str program = base_of(words[0]);
+    if (program == "env") {
+        for (int found_at in 1 .. words.size()) {
+            if (words[found_at].size() > 0 && !words[found_at].starts_with("-") && !words[found_at].contains("=")) {
+                program = base_of(words[found_at]);
+                break;
+            }
+        }
+    }
+    // python3.11 -> python3 -> python
+    str known = SYN_tables.SHEBANG.get(program).or("");
+    if (known != "") {
+        return known;
+    }
+    int cut = program.size();
+    while (cut > 0 && ((program.byte_at(cut - 1) >= 48 && program.byte_at(cut - 1) <= 57) || program.byte_at(cut - 1) == 46)) {
+        cut = cut - 1;
+    }
+    return SYN_tables.SHEBANG.get(program.substr(0, cut)).or("");
+}
+
+// a `vim: ft=python` / `-*- mode: python -*-` hint on the first line
+str modeline_of(str line) {
+    List<str> keys = ["ft=", "filetype=", "syntax=", "mode: ", "mode:"];
+    for (str key in keys) {
+        bool is_vim = key.ends_with("=");
+        if (is_vim && !(line.contains("vim:") || line.contains("vi:") || line.contains("ex:"))) {
+            continue;
+        }
+        if (!is_vim && !line.contains("-*-")) {
+            continue;
+        }
+        int found_at = line.index_of(key).or(-1);
+        if (found_at >= 0) {
+            int from = found_at + key.size();
+            int stop = from;
+            while (stop < line.size() && ((line.byte_at(stop) >= 97 && line.byte_at(stop) <= 122) || (line.byte_at(stop) >= 65 && line.byte_at(stop) <= 90) || (line.byte_at(stop) >= 48 && line.byte_at(stop) <= 57) || line.byte_at(stop) == 43 || line.byte_at(stop) == 45)) {
+                stop = stop + 1;
+            }
+            str found = alias_of(line.substr(from, stop));
+            if (found != "") {
+                return found;
+            }
+        }
+    }
+    return "";
+}
+
+/// The language of a file: a modeline on the first line, else its name or
+/// extension, else a `#!` line. "" when unknown (plain text).
+pub str language_of(str path, str first_line) {
+    str hinted = modeline_of(first_line);
+    if (hinted != "") {
+        return hinted;
+    }
+    str base = base_of(path);
+    str by_name = SYN_tables.FILES.get(base).or("");
+    if (by_name != "") {
+        return by_name;
+    }
+    str lower = base.to_lower();
+    if (lower.starts_with("dockerfile") || lower.ends_with(".dockerfile")) {
+        return "dockerfile";
+    }
+    if (lower.starts_with("readme") && extension_of(base) == "") {
+        return "markdown";
+    }
+    str ext = extension_of(base);
+    // editor backups and templates: main.c.bak, config.toml.in
+    if (ext == "bak" || ext == "orig" || ext == "in" || ext == "dist" || ext == "tmpl" || ext == "example" || ext == "sample" || ext == "old" || ext == "new") {
+        str inner = base.substr(0, base.size() - ext.size() - 1);
+        ext = extension_of(inner);
+    }
+    if (ext != "") {
+        str by_ext = SYN_tables.EXT.get(ext).or("");
+        if (by_ext != "") {
+            return by_ext;
+        }
+    }
+    if (first_line.starts_with("#!")) {
+        return interpreter_of(first_line);
+    }
+    if (first_line.starts_with("<?php")) {
+        return "php";
+    }
+    if (first_line.starts_with("<?xml")) {
+        return "xml";
+    }
+    if (first_line.starts_with("diff --git") || first_line.starts_with("--- a/") || first_line.starts_with("Index: ")) {
+        return "diff";
+    }
+    return "";
+}

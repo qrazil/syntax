@@ -1,0 +1,18 @@
+// Batch.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("bat");
+    lang.keywords = "if else for in do goto call exit echo set setlocal endlocal shift pause rem not exist defined errorlevel equ neq lss leq gtr geq cd md rd copy del type start";
+    lang.sigil = "%";
+    lang.comment_leader = "REM ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("::");
+    lang.line_comment("REM ");
+    lang.line_comment("rem ");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

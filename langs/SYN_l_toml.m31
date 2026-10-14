@@ -1,0 +1,19 @@
+// toml.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("toml");
+    lang.constants = "true false inf nan";
+    lang.comment_leader = "# ";
+    lang.has_keys = true;
+    lang.has_sections = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("#");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("'''", "'''", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "", "");
+    return lang.build();
+}

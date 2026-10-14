@@ -1,0 +1,22 @@
+// cpp.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("cpp");
+    lang.keywords = "if else for while do switch case default break continue return goto sizeof typedef static extern const volatile inline register auto restrict _Atomic _Alignas _Alignof _Noreturn _Static_assert _Thread_local class public private protected namespace template typename using new delete try catch throw virtual override final operator this constexpr consteval constinit noexcept explicit friend mutable static_assert static_cast dynamic_cast reinterpret_cast const_cast decltype alignas alignof and or not xor bitand bitor compl co_await co_return co_yield concept requires export import module";
+    lang.types = "int char short long float double void unsigned signed bool size_t ssize_t ptrdiff_t intptr_t uintptr_t uint8_t uint16_t uint32_t uint64_t int8_t int16_t int32_t int64_t FILE wchar_t off_t time_t _Bool _Complex va_list string wstring string_view vector map set unordered_map unordered_set list deque array pair tuple optional variant shared_ptr unique_ptr weak_ptr std char8_t char16_t char32_t nullptr_t";
+    lang.constants = "NULL nullptr true false EOF";
+    lang.specials = "this";
+    lang.decl_type = "struct union enum class namespace";
+    lang.preproc = "#";
+    lang.comment_leader = "// ";
+    lang.symbol_style = "c";
+    lang.has_include_angle = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("R\"(", ")\"", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

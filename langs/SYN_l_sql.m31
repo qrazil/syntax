@@ -1,0 +1,20 @@
+// SQL.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("sql");
+    lang.keywords = "select from where and or not in is null like between exists distinct all as on join inner outer left right full cross natural using group by having order asc desc limit offset union intersect except insert into values update set delete create alter drop table view index database schema column constraint primary key foreign references unique default check cascade restrict add rename to begin commit rollback transaction savepoint grant revoke case when then else end with recursive returning over partition window row rows range unbounded preceding following if explain analyze vacuum truncate trigger function procedure return returns declare cursor fetch open close execute prepare deallocate temp temporary replace materialized only for each statement before after instead of show describe use pragma";
+    lang.types = "int integer smallint bigint tinyint mediumint decimal numeric float real double precision boolean bool char varchar text blob clob date time timestamp timestamptz datetime interval uuid json jsonb xml serial bigserial bytea binary varbinary enum array money inet cidr";
+    lang.constants = "true false null unknown current_date current_time current_timestamp";
+    lang.builtins = "count sum avg min max coalesce nullif cast convert concat length lower upper trim substring replace round floor ceil abs now date_trunc extract row_number rank dense_rank lag lead first_value last_value ifnull isnull";
+    lang.comment_leader = "-- ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.line_comment("--");
+    lang.block_comment("/*", "*/", "");
+    lang.string("'", "'", "doubled", "m");
+    lang.string("\"", "\"", "doubled", "");
+    lang.string("`", "`", "", "");
+    return lang.build();
+}

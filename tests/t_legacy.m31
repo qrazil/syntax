@@ -1,0 +1,136 @@
+// The checks the editor's and tui's highlighters were written against, run on
+// this library: class-per-byte results are folded onto the original twelve
+// classes (`SYN_class.legacy`), so what an older consumer sees is unchanged.
+
+import core.SYN_class;
+import core.SYN_detect;
+import core.SYN_highlight;
+import tests.SYN_check;
+
+type Tokens {
+    pub List<int> classes = [];
+    pub int state = 0;
+}
+
+Tokens classify(str lang, str line, int state) {
+    SYN_highlight.Tokens raw = SYN_highlight.classify(lang, line, state);
+    Tokens out = Tokens();
+    out.state = raw.state;
+    for (int class_value in raw.classes) {
+        out.classes.push(SYN_class.legacy(class_value));
+    }
+    return out;
+}
+
+SYN_check.Check check = SYN_check.Check();
+check.eq_str("c by extension", SYN_detect.language_of("a/b/x.c", ""), "c");
+check.eq_str("rust", SYN_detect.language_of("main.rs", ""), "rust");
+check.eq_str("m31", SYN_detect.language_of("m3.m31", ""), "m31");
+check.eq_str("shebang", SYN_detect.language_of("tool", "#!/usr/bin/env python3"), "python");
+check.eq_str("unknown", SYN_detect.language_of("notes.txt", ""), "");
+check.eq_str("dotfile name", SYN_detect.language_of("/home/u/.bashrc", ""), "sh");
+Tokens python = classify("python", "def f(x): # note", 0);
+check.eq_int("keyword", python.classes[0], SYN_class.KEYWORD);
+check.eq_int("function name", python.classes[4], SYN_class.FUNCTION);
+check.eq_int("plain", python.classes[7], SYN_class.NORMAL);
+check.eq_int("comment", python.classes[11], SYN_class.COMMENT);
+Tokens open_string = classify("python", "x = \"\"\"abc", 0);
+check.ok("a triple quote carries on", open_string.state != 0);
+check.eq_int("string", open_string.classes[6], SYN_class.STRING);
+Tokens closed = classify("python", "def\"\"\" + 1", open_string.state);
+check.eq_int("inside the string", closed.classes[0], SYN_class.STRING);
+check.eq_int("closed", closed.state, 0);
+check.eq_int("number after it", closed.classes[9], SYN_class.NUMBER);
+Tokens block = classify("c", "int x; /* start", 0);
+check.eq_int("type", block.classes[0], SYN_class.TYPE);
+check.eq_int("block comment", block.classes[8], SYN_class.COMMENT);
+check.ok("state", block.state != 0);
+Tokens after = classify("c", "end */ return 0;", block.state);
+check.eq_int("comment ends", after.classes[4], SYN_class.COMMENT);
+check.eq_int("keyword after", after.classes[7], SYN_class.KEYWORD);
+check.eq_int("state cleared", after.state, 0);
+Tokens preproc = classify("c", "#include <stdio.h>", 0);
+check.eq_int("preprocessor", preproc.classes[3], SYN_class.PREPROC);
+Tokens json = classify("json", "{\"a\": [1, true, \"s\"]}", 0);
+check.eq_int("key", json.classes[2], SYN_class.TYPE);
+check.eq_int("number", json.classes[7], SYN_class.NUMBER);
+check.eq_int("constant", json.classes[10], SYN_class.CONSTANT);
+check.eq_int("string value", json.classes[17], SYN_class.STRING);
+Tokens heading = classify("markdown", "## Title", 0);
+check.eq_int("heading", heading.classes[3], SYN_class.TITLE);
+Tokens fence = classify("markdown", "```rust", 0);
+check.ok("a known fence language carries a language state", fence.state != 0);
+Tokens inside = classify("markdown", "fn main() { let x = 1; } // c", fence.state);
+check.eq_int("rust keyword in a rust fence", inside.classes[0], SYN_class.KEYWORD);
+check.eq_int("rust function name", inside.classes[3], SYN_class.FUNCTION);
+check.eq_int("rust number", inside.classes[20], SYN_class.NUMBER);
+check.eq_int("rust comment", inside.classes[27], SYN_class.COMMENT);
+check.eq_int("fence stays open", inside.state, fence.state);
+Tokens fence_end = classify("markdown", "```", inside.state);
+check.eq_int("fence closes", fence_end.state, 0);
+check.eq_int("closing fence marker", fence_end.classes[0], SYN_class.SPECIAL);
+Tokens py_open = classify("markdown", "```python", 0);
+Tokens py_line = classify("markdown", "def f(): pass", py_open.state);
+check.eq_int("python def in a python fence", py_line.classes[0], SYN_class.KEYWORD);
+check.ok("python fence is not the rust fence", py_open.state != fence.state);
+Tokens alias = classify("markdown", "```py", 0);
+check.eq_int("py alias is python", alias.state, py_open.state);
+check.eq_int("rs alias is rust", classify("markdown", "``` rs", 0).state, fence.state);
+check.eq_int("sh alias", classify("markdown", "```bash", 0).state, classify("markdown", "```sh", 0).state);
+check.eq_int("tilde fence with a brace info string", classify("markdown", "~~~{.python}", 0).state, py_open.state);
+Tokens unknown = classify("markdown", "```brainfuck", 0);
+check.ok("unknown language is a plain fence", unknown.state != 0 && unknown.state != fence.state);
+check.eq_int("fence body in an unknown language", classify("markdown", "+++", unknown.state).classes[0], SYN_class.STRING);
+check.eq_int("bare fence is plain", classify("markdown", "```", 0).state, unknown.state);
+Tokens m31_open = classify("markdown", "```m31", 0);
+check.eq_int("m31 fence", classify("markdown", "int x = 1;", m31_open.state).classes[0], SYN_class.KEYWORD);
+// a block comment inside a fence survives across lines, and the fence still closes
+Tokens c_open = classify("markdown", "```c", 0);
+Tokens c_comment = classify("markdown", "/* open", c_open.state);
+check.eq_int("comment line", c_comment.classes[3], SYN_class.COMMENT);
+Tokens c_inside = classify("markdown", "still comment", c_comment.state);
+check.eq_int("comment continues in the fence", c_inside.classes[0], SYN_class.COMMENT);
+check.eq_int("fence closes out of a comment", classify("markdown", "```", c_inside.state).state, 0);
+Tokens md_title = classify("markdown", "# Hello `x`", 0);
+check.eq_int("heading marker", md_title.classes[0], SYN_class.SPECIAL);
+check.eq_int("heading text", md_title.classes[3], SYN_class.TITLE);
+check.eq_int("code in a heading", md_title.classes[9], SYN_class.STRING);
+Tokens md_inline = classify("markdown", "a *em* **bo** `co` [t](u) ~~s~~", 0);
+check.eq_int("plain", md_inline.classes[0], SYN_class.NORMAL);
+check.eq_int("emphasis", md_inline.classes[3], SYN_class.TYPE);
+check.eq_int("strong", md_inline.classes[8], SYN_class.KEYWORD);
+check.eq_int("inline code", md_inline.classes[14], SYN_class.STRING);
+check.eq_int("link text", md_inline.classes[19], SYN_class.FUNCTION);
+check.eq_int("link url", md_inline.classes[22], SYN_class.COMMENT);
+check.eq_int("strikethrough", md_inline.classes[27], SYN_class.COMMENT);
+Tokens snake = classify("markdown", "snake_case_name and 2 * 3 * 4", 0);
+check.eq_int("underscores inside words are not emphasis", snake.classes[6], SYN_class.NORMAL);
+check.eq_int("spaced stars are not emphasis", snake.classes[22], SYN_class.NORMAL);
+Tokens quote = classify("markdown", "> quoted `c`", 0);
+check.eq_int("blockquote marker", quote.classes[0], SYN_class.SPECIAL);
+check.eq_int("blockquote text", quote.classes[3], SYN_class.COMMENT);
+check.eq_int("code in a quote", quote.classes[10], SYN_class.STRING);
+check.eq_int("hr dashes", classify("markdown", "---", 0).classes[1], SYN_class.SPECIAL);
+check.eq_int("hr stars", classify("markdown", "* * *", 0).classes[2], SYN_class.SPECIAL);
+Tokens row = classify("markdown", "| a | `b` |", 0);
+check.eq_int("table pipe", row.classes[0], SYN_class.SPECIAL);
+check.eq_int("table cell", row.classes[2], SYN_class.NORMAL);
+check.eq_int("table code cell", row.classes[6], SYN_class.STRING);
+check.eq_int("table delimiter", classify("markdown", "|---|:-:|", 0).classes[3], SYN_class.SPECIAL);
+Tokens bullet = classify("markdown", "- [x] done **it**", 0);
+check.eq_int("bullet", bullet.classes[0], SYN_class.SPECIAL);
+check.eq_int("task box", bullet.classes[3], SYN_class.CONSTANT);
+check.eq_int("strong in a list item", bullet.classes[12], SYN_class.KEYWORD);
+check.eq_int("ordered marker", classify("markdown", "12. item", 0).classes[1], SYN_class.SPECIAL);
+check.eq_int("bare url", classify("markdown", "see https://x.org/a ok", 0).classes[6], SYN_class.FUNCTION);
+check.eq_int("html comment", classify("markdown", "<!-- note --> t", 0).classes[3], SYN_class.COMMENT);
+Tokens shell = classify("sh", "echo \"$HOME\" # c", 0);
+check.eq_int("shell keyword", shell.classes[0], SYN_class.KEYWORD);
+check.eq_int("shell string", shell.classes[6], SYN_class.STRING);
+check.eq_int("shell comment", shell.classes[15], SYN_class.COMMENT);
+Tokens rust = classify("rust", "let c = 'a'; // x", 0);
+check.eq_int("rust char", rust.classes[8], SYN_class.STRING);
+check.eq_int("rust comment", rust.classes[14], SYN_class.COMMENT);
+Tokens lifetime = classify("rust", "fn f<'a>(x: &'a str)", 0);
+check.eq_int("a lifetime is not a string", lifetime.classes[5], SYN_class.NORMAL);
+check.finish();

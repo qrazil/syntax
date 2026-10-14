@@ -1,0 +1,18 @@
+// HCL / Terraform.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("hcl");
+    lang.keywords = "for in if resource variable output module provider data locals terraform dynamic content";
+    lang.constants = "true false null";
+    lang.comment_leader = "# ";
+    lang.has_keys = true;
+    lang.has_heredoc = true;
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

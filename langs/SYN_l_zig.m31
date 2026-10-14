@@ -1,0 +1,18 @@
+// zig.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("zig");
+    lang.keywords = "addrspace align allowzero and anyframe anytype asm async await break callconv catch comptime const continue defer else enum errdefer error export extern fn for if inline linksection noalias noinline nosuspend opaque or orelse packed pub resume return struct suspend switch test threadlocal try union unreachable usingnamespace var volatile while";
+    lang.types = "u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f16 f32 f64 f128 bool void type anyerror noreturn c_int c_uint c_long c_char comptime_int comptime_float";
+    lang.constants = "true false null undefined";
+    lang.decl_fn = "fn";
+    lang.decl_type = "struct enum union error";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

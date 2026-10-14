@@ -1,0 +1,18 @@
+// CMake.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("cmake");
+    lang.keywords = "if elseif else endif foreach endforeach while endwhile function endfunction macro endmacro return break continue block endblock";
+    lang.constants = "ON OFF TRUE FALSE YES NO NOTFOUND";
+    lang.sigil = "$";
+    lang.comment_leader = "# ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.block_comment("#[", "]", "L");
+    lang.string("[", "", "", "L");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

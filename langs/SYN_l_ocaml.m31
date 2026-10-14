@@ -1,0 +1,17 @@
+// OCaml.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("ocaml");
+    lang.keywords = "and as assert begin class constraint do done downto else end exception external for fun function functor if in include inherit initializer lazy let match method module mutable new nonrec object of open or private rec sig struct then to try type val virtual when while with";
+    lang.types = "int float bool char string unit list array option ref exn bytes";
+    lang.constants = "true false None Some Ok Error";
+    lang.decl_type = "type module class exception";
+    lang.word_body = "'";
+    lang.block_comment("(*", "*)", "n");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    lang.string("{|", "|}", "", "m");
+    return lang.build();
+}

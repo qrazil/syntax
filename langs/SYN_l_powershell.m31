@@ -1,0 +1,23 @@
+// PowerShell.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("powershell");
+    lang.keywords = "begin break catch class continue data define do dynamicparam else elseif end enum exit filter finally for foreach from function hidden if in inlinescript param parallel process return sequence switch throw trap try until using var while workflow";
+    lang.constants = "$true $false $null";
+    lang.builtins = "Write-Host Write-Output Write-Error Get-Item Get-ChildItem Set-Location Get-Content Set-Content Where-Object ForEach-Object Select-Object Invoke-Expression Import-Module";
+    lang.word_body = "-";
+    lang.sigil = "$";
+    lang.comment_leader = "# ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("#");
+    lang.block_comment("<#", "#>", "");
+    lang.string("@\"", "\"@", "`", "m");
+    lang.string("@'", "'@", "", "m");
+    lang.string("\"", "\"", "`", "");
+    lang.string("'", "'", "doubled", "");
+    return lang.build();
+}

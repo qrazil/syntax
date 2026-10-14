@@ -1,0 +1,21 @@
+// swift.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("swift");
+    lang.keywords = "associatedtype class deinit enum extension fileprivate func import init inout internal let open operator private precedencegroup protocol public rethrows static struct subscript typealias var break case catch continue default defer do else fallthrough for guard if in repeat return throw switch where while Any as await catch is nil super self Self throws try async actor some any macro willSet didSet get set lazy final override required convenience mutating nonmutating optional weak unowned indirect";
+    lang.types = "Int Int8 Int16 Int32 Int64 UInt UInt8 UInt16 UInt32 UInt64 Float Double Bool String Character Array Dictionary Set Optional Result Void Any AnyObject Data Date URL";
+    lang.constants = "true false nil";
+    lang.specials = "self super";
+    lang.decl_fn = "func";
+    lang.decl_type = "class struct enum protocol extension typealias actor";
+    lang.preproc = "#";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "n");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

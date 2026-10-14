@@ -1,0 +1,325 @@
+// HTML, XML, Vue and Svelte: tags, attributes, comments, and the
+// raw-text elements <script> and <style>, whose bodies are handed to
+// javascript / typescript / css (an attribute `lang="ts"` or
+// `lang="scss"` picks the dialect).
+//
+// Own state: kind (bits 0..3), sub (4..7), quote (8..11)
+//   kind 0 text, 1 inside a tag, 2 inside <!-- -->, 3 in a <script> body,
+//   4 in a <style> body, 5 inside <![CDATA[ ]]>
+//   sub  (kind 1) which element opened: 0 other, 1 script, 2 style, 3 a
+//        closing tag; (kinds 3, 4) the dialect: 0 default, 1 ts / scss, 2 less
+//   quote (kind 1) 0, or the quote byte class 1 ", 2 ' of a value that
+//        continues on the next line
+// The injected language's id and state use the bits above, as the engine's
+// injection protocol says.
+
+import core.SYN_class;
+import core.SYN_lang;
+import core.SYN_registry;
+import core.SYN_scanner;
+
+const int K_TEXT = 0;
+const int K_TAG = 1;
+const int K_COMMENT = 2;
+const int K_SCRIPT = 3;
+const int K_STYLE = 4;
+const int K_CDATA = 5;
+
+bool is_name_byte(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || (byte >= 48 && byte <= 57) || byte == 95 || byte == 45 || byte == 58 || byte == 46 || byte >= 128;
+}
+
+bool is_space(int byte) {
+    return byte == 32 || byte == 9 || byte == 13;
+}
+
+int lower(int byte) {
+    if (byte >= 65 && byte <= 90) {
+        return byte + 32;
+    }
+    return byte;
+}
+
+// does `word` (lower case) occur at `position`, ignoring case?
+bool is_word_at(str line, int position, str word) {
+    if (position + word.size() > line.size()) {
+        return false;
+    }
+    for (int index in 0 .. word.size()) {
+        if (lower(line.byte_at(position + index)) != word.byte_at(index)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// the position of `</name` at or after `from`, or -1
+int find_close(str line, int from, str name) {
+    int position = from;
+    while (position + 1 < line.size()) {
+        if (line.byte_at(position) == 60 && line.byte_at(position + 1) == 47 && is_word_at(line, position + 2, name)) {
+            return position;
+        }
+        position = position + 1;
+    }
+    return -1;
+}
+
+int find_text(str line, int from, str needle) {
+    return line.substr(from, line.size()).index_of(needle).or(-1);
+}
+
+// the injected language for a raw-text body
+str inner_name(int kind, int dialect) {
+    if (kind == K_SCRIPT) {
+        if (dialect == 1) {
+            return "typescript";
+        }
+        return "javascript";
+    }
+    if (dialect == 1) {
+        return "scss";
+    }
+    if (dialect == 2) {
+        return "less";
+    }
+    return "css";
+}
+
+/// Scan one line of markup.
+pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    int kind = state & 15;
+    int sub = (state >> 4) & 15;
+    int quote = (state >> 8) & 15;
+    int dialect = 0;
+    if (kind == K_TAG) {
+        dialect = (state >> 12) & 3;
+    }
+    int position = 0;
+    bool is_xml = lang.name == "xml";
+    scanner.state = 0;
+    while (position <= size) {
+        if (kind == K_SCRIPT || kind == K_STYLE) {
+            str closing = "script";
+            if (kind == K_STYLE) {
+                closing = "style";
+            }
+            int stop = find_close(line, position, closing);
+            int body_end = stop;
+            if (stop < 0) {
+                body_end = size;
+            }
+            int id = (state >> 12) & 255;
+            int inner = 0;
+            if (id != 0 && (state & 15) == kind && position == 0) {
+                inner = state >> 20;
+            }
+            scanner.inj_lang = inner_name(kind, sub);
+            scanner.inj_from = position;
+            scanner.inj_to = body_end;
+            scanner.inj_state = inner;
+            if (stop < 0) {
+                scanner.state = kind | (sub << 4) | (SYN_registry.id_of(scanner.inj_lang) << 12);
+                return;
+            }
+            // the closing tag is handled as markup below
+            position = stop;
+            kind = K_TEXT;
+            scanner.state = 0;
+            if (scanner.inj_from >= scanner.inj_to) {
+                scanner.inj_lang = "";
+            }
+        }
+        if (position >= size) {
+            break;
+        }
+        int byte = line.byte_at(position);
+        if (kind == K_COMMENT) {
+            int stop = find_text(line, position, "-->");
+            if (stop < 0) {
+                scanner.emit(position, size, SYN_class.COMMENT);
+                scanner.state = K_COMMENT;
+                return;
+            }
+            scanner.emit(position, position + stop + 3, SYN_class.COMMENT);
+            position = position + stop + 3;
+            kind = K_TEXT;
+            continue;
+        }
+        if (kind == K_CDATA) {
+            int stop = find_text(line, position, "]]>");
+            if (stop < 0) {
+                scanner.emit(position, size, SYN_class.STRING);
+                scanner.state = K_CDATA;
+                return;
+            }
+            scanner.emit(position, position + stop + 3, SYN_class.STRING);
+            position = position + stop + 3;
+            kind = K_TEXT;
+            continue;
+        }
+        if (kind == K_TAG) {
+            if (quote != 0) {
+                int quote_byte = 34;
+                if (quote == 2) {
+                    quote_byte = 39;
+                }
+                int stop = position;
+                while (stop < size && line.byte_at(stop) != quote_byte) {
+                    stop = stop + 1;
+                }
+                if (stop >= size) {
+                    scanner.emit(position, size, SYN_class.STRING);
+                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12);
+                    return;
+                }
+                scanner.emit(position, stop + 1, SYN_class.STRING);
+                position = stop + 1;
+                quote = 0;
+                continue;
+            }
+            if (is_space(byte)) {
+                position = position + 1;
+                continue;
+            }
+            if (byte == 62 || (byte == 47 && position + 1 < size && line.byte_at(position + 1) == 62)) {
+                int end = position + 1;
+                if (byte == 47) {
+                    end = position + 2;
+                }
+                scanner.emit(position, end, SYN_class.TAG);
+                position = end;
+                if (byte == 62 && sub == 1 && !is_xml) {
+                    kind = K_SCRIPT;
+                    sub = dialect;
+                } else if (byte == 62 && sub == 2 && !is_xml) {
+                    kind = K_STYLE;
+                    sub = dialect;
+                } else {
+                    kind = K_TEXT;
+                    sub = 0;
+                }
+                continue;
+            }
+            if (byte == 34 || byte == 39) {
+                int stop = position + 1;
+                while (stop < size && line.byte_at(stop) != byte) {
+                    stop = stop + 1;
+                }
+                if (stop >= size) {
+                    scanner.emit(position, size, SYN_class.STRING);
+                    quote = 1;
+                    if (byte == 39) {
+                        quote = 2;
+                    }
+                    scanner.state = K_TAG | (sub << 4) | (quote << 8) | (dialect << 12);
+                    return;
+                }
+                str body = line.substr(position + 1, stop);
+                if (sub == 1 && (body == "ts" || body == "typescript" || body == "text/typescript" || body == "tsx")) {
+                    dialect = 1;
+                } else if (sub == 2 && (body == "scss" || body == "sass")) {
+                    dialect = 1;
+                } else if (sub == 2 && body == "less") {
+                    dialect = 2;
+                }
+                scanner.emit(position, stop + 1, SYN_class.STRING);
+                position = stop + 1;
+                continue;
+            }
+            if (byte == 61) {
+                position = position + 1;
+                continue;
+            }
+            if (is_name_byte(byte) || byte == 64 || byte == 35 || byte == 36 || byte == 123) {
+                int stop = position + 1;
+                while (stop < size && (is_name_byte(line.byte_at(stop)) || line.byte_at(stop) == 64)) {
+                    stop = stop + 1;
+                }
+                // `lang=ts` / `type=...` selects the dialect on script and style tags
+                scanner.emit(position, stop, SYN_class.ATTRIBUTE);
+                position = stop;
+                continue;
+            }
+            position = position + 1;
+            continue;
+        }
+        // text
+        if (byte == 60) {
+            if (position + 3 < size && line.byte_at(position + 1) == 33 && line.byte_at(position + 2) == 45 && line.byte_at(position + 3) == 45) {
+                kind = K_COMMENT;
+                int stop = find_text(line, position + 4, "-->");
+                if (stop < 0) {
+                    scanner.emit(position, size, SYN_class.COMMENT);
+                    scanner.state = K_COMMENT;
+                    return;
+                }
+                scanner.emit(position, position + 4 + stop + 3, SYN_class.COMMENT);
+                position = position + 4 + stop + 3;
+                kind = K_TEXT;
+                continue;
+            }
+            if (is_word_at(line, position + 1, "![cdata[")) {
+                kind = K_CDATA;
+                position = position + 9;
+                continue;
+            }
+            if (position + 1 < size && (line.byte_at(position + 1) == 33 || line.byte_at(position + 1) == 63)) {
+                int stop = find_text(line, position, ">");
+                int end = size;
+                if (stop >= 0) {
+                    end = position + stop + 1;
+                }
+                scanner.emit(position, end, SYN_class.PREPROC);
+                position = end;
+                continue;
+            }
+            int name = position + 1;
+            bool is_closing_tag = false;
+            if (name < size && line.byte_at(name) == 47) {
+                is_closing_tag = true;
+                name = name + 1;
+            }
+            int stop = name;
+            while (stop < size && is_name_byte(line.byte_at(stop))) {
+                stop = stop + 1;
+            }
+            if (stop > name) {
+                scanner.emit(position, name, SYN_class.TAG);
+                scanner.emit(name, stop, SYN_class.TAG);
+                sub = 0;
+                dialect = 0;
+                if (is_closing_tag) {
+                    sub = 3;
+                } else if (is_word_at(line, name, "script") && stop - name == 6) {
+                    sub = 1;
+                } else if (is_word_at(line, name, "style") && stop - name == 5) {
+                    sub = 2;
+                }
+                kind = K_TAG;
+                position = stop;
+                continue;
+            }
+            position = position + 1;
+            continue;
+        }
+        if (byte == 38) {
+            int stop = position + 1;
+            while (stop < size && stop - position < 10 && (is_name_byte(line.byte_at(stop)) || line.byte_at(stop) == 35)) {
+                stop = stop + 1;
+            }
+            if (stop < size && line.byte_at(stop) == 59 && stop > position + 1) {
+                scanner.emit(position, stop + 1, SYN_class.SPECIAL);
+                position = stop + 1;
+                continue;
+            }
+        }
+        position = position + 1;
+    }
+    if (kind == K_TAG) {
+        scanner.state = K_TAG | (sub << 4) | (dialect << 12);
+    } else if (kind == K_SCRIPT || kind == K_STYLE) {
+        scanner.state = kind | (sub << 4);
+    }
+}

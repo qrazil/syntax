@@ -1,0 +1,20 @@
+// julia.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("julia");
+    lang.keywords = "abstract baremodule begin break catch const continue do else elseif end export finally for function global if import in isa let local macro module mutable outer primitive quote return struct try using where while";
+    lang.types = "Int Int8 Int16 Int32 Int64 Int128 UInt UInt8 UInt16 UInt32 UInt64 Float16 Float32 Float64 Bool Char String Symbol Any Nothing Missing Number Real Integer AbstractString Vector Matrix Array Dict Set Tuple NamedTuple Union Type";
+    lang.constants = "true false nothing missing NaN Inf pi";
+    lang.decl_fn = "function macro";
+    lang.decl_type = "struct module abstract primitive";
+    lang.word_body = "!";
+    lang.comment_leader = "# ";
+    lang.line_comment("#");
+    lang.block_comment("#=", "=#", "n");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

@@ -1,0 +1,11 @@
+// HTML.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("html");
+    lang.mode = "markup";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    return lang.build();
+}

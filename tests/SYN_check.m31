@@ -1,0 +1,155 @@
+// Test helpers: a tally, and `snap`, which checks the classes of lines of one
+// language against a mask drawn under the source.
+//
+// Mask letters, one per byte (a short mask means NORMAL for the rest):
+//   ' ' normal  c comment  s string  0 number  k keyword  t type
+//   f function name  l call  p preproc  o constant  x special/escape
+//   highlighter heading  y property  g tag  a attribute  + added  - removed
+//   u link  e emphasis  b strong  r raw  v builtin variable  m member
+
+import core.SYN_class;
+import core.SYN_highlight;
+
+pub type Check {
+    pub int passed = 0;
+    pub int failed = 0;
+}
+
+pub void Check.ok(str name, bool is_true) {
+    if (is_true) {
+        passed = passed + 1;
+    } else {
+        failed = failed + 1;
+        print("FAIL " + name);
+    }
+}
+
+pub void Check.eq_int(str name, int got, int want) {
+    if (got == want) {
+        passed = passed + 1;
+    } else {
+        failed = failed + 1;
+        print("FAIL " + name + ": got " + str(got) + " want " + str(want));
+    }
+}
+
+pub void Check.eq_str(str name, str got, str want) {
+    if (got == want) {
+        passed = passed + 1;
+    } else {
+        failed = failed + 1;
+        print("FAIL " + name + ": got [" + got + "] want [" + want + "]");
+    }
+}
+
+pub void Check.finish() {
+    print(str(passed) + " passed, " + str(failed) + " failed");
+}
+
+/// Check `masks[i]` against the classes of `lines[i]` in language `lang`;
+/// the lines are one file, so state carries from one to the next. Trailing
+/// spaces of a mask do not matter.
+pub void Check.snap(str lang, List<str> lines, List<str> masks) {
+    SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: lang);
+    highlighter.set_lines(lines);
+    for (int row in 0 .. lines.size()) {
+        str got = rtrim(mask_of(highlighter, row));
+        str want = rtrim(masks[row]);
+        if (got == want) {
+            passed = passed + 1;
+        } else {
+            failed = failed + 1;
+            print("FAIL " + lang + ": " + lines[row]);
+            print("     got  [" + got + "]");
+            print("     want [" + want + "]");
+        }
+    }
+}
+
+str letter(int class_value) {
+    if (class_value == SYN_class.COMMENT) {
+        return "c";
+    }
+    if (class_value == SYN_class.STRING) {
+        return "s";
+    }
+    if (class_value == SYN_class.NUMBER) {
+        return "0";
+    }
+    if (class_value == SYN_class.KEYWORD) {
+        return "k";
+    }
+    if (class_value == SYN_class.TYPE) {
+        return "t";
+    }
+    if (class_value == SYN_class.FUNCTION) {
+        return "f";
+    }
+    if (class_value == SYN_class.CALL) {
+        return "l";
+    }
+    if (class_value == SYN_class.PREPROC) {
+        return "p";
+    }
+    if (class_value == SYN_class.CONSTANT) {
+        return "o";
+    }
+    if (class_value == SYN_class.SPECIAL) {
+        return "x";
+    }
+    if (class_value == SYN_class.TITLE) {
+        return "h";
+    }
+    if (class_value == SYN_class.PROPERTY) {
+        return "y";
+    }
+    if (class_value == SYN_class.TAG) {
+        return "g";
+    }
+    if (class_value == SYN_class.ATTRIBUTE) {
+        return "a";
+    }
+    if (class_value == SYN_class.ADDED) {
+        return "+";
+    }
+    if (class_value == SYN_class.REMOVED) {
+        return "-";
+    }
+    if (class_value == SYN_class.LINK) {
+        return "u";
+    }
+    if (class_value == SYN_class.EMPHASIS) {
+        return "e";
+    }
+    if (class_value == SYN_class.STRONG) {
+        return "b";
+    }
+    if (class_value == SYN_class.RAW) {
+        return "r";
+    }
+    if (class_value == SYN_class.BUILTIN_VAR) {
+        return "v";
+    }
+    if (class_value == SYN_class.MEMBER) {
+        return "m";
+    }
+    return " ";
+}
+
+/// The mask of a line, as `snap` compares it.
+pub str mask_of(SYN_highlight.Highlighter highlighter, int row) {
+    List<int> classes = highlighter.classes(row);
+    str out = "";
+    for (int class_value in classes) {
+        out = out + letter(class_value);
+    }
+    return out;
+}
+
+str rtrim(str text) {
+    int stop = text.size();
+    while (stop > 0 && text.byte_at(stop - 1) == 32) {
+        stop = stop - 1;
+    }
+    return text.substr(0, stop);
+}

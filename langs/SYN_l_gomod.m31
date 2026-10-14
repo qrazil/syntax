@@ -1,0 +1,15 @@
+// go.mod.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("gomod");
+    lang.keywords = "module go toolchain require replace exclude retract godebug use";
+    lang.comment_leader = "// ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("//");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("`", "`", "", "m");
+    return lang.build();
+}

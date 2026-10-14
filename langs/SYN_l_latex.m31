@@ -1,0 +1,16 @@
+// LaTeX.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("latex");
+    lang.word_body = "@";
+    lang.attr = "\\";
+    lang.comment_leader = "% ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("%");
+    lang.string("$$", "$$", "\\", "m");
+    lang.string("$", "$", "\\", "");
+    return lang.build();
+}

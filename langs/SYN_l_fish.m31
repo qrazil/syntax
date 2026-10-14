@@ -1,0 +1,17 @@
+// fish.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("fish");
+    lang.keywords = "and argparse begin break builtin case command continue else end exec for function if in not or return set switch while string test status read printf echo math count contains";
+    lang.sigil = "$";
+    lang.comment_leader = "# ";
+    lang.needs_comment_space = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

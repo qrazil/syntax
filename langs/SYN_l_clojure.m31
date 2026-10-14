@@ -1,0 +1,16 @@
+// clojure.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("clojure");
+    lang.keywords = "def defn defn- defmacro defmulti defmethod defprotocol defrecord deftype defonce ns let letfn fn if if-not when when-not cond condp case do loop recur for doseq dotimes while try catch finally throw quote var import require use refer in-ns and or not binding";
+    lang.constants = "true false nil";
+    lang.word_body = "-?!*+<>=/.:#'";
+    lang.comment_leader = ";; ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment(";");
+    lang.string("\"", "\"", "\\", "m");
+    return lang.build();
+}

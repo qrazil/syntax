@@ -1,0 +1,19 @@
+// R.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("r");
+    lang.keywords = "if else repeat while function for next break in return TRUE FALSE NULL NA NA_integer_ NA_real_ NA_character_ Inf NaN library require source";
+    lang.constants = "TRUE FALSE NULL NA Inf NaN T F";
+    lang.builtins = "c list vector matrix data.frame print cat paste paste0 length names nrow ncol sum mean median sd min max seq rep apply lapply sapply vapply mapply do.call stop warning tryCatch";
+    lang.word_start = ".";
+    lang.word_body = ".";
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    lang.string("`", "`", "\\", "");
+    return lang.build();
+}

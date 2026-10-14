@@ -1,0 +1,92 @@
+// The line engine: `scan` classifies one line of one language from the state
+// the line before it left, handling injection (a markdown fence's language,
+// a <script> block's) around the per-mode scanners.
+//
+// State packing: the low 12 bits belong to the language's own scanner, bits
+// 12..19 hold the id of an injected language (0 = none; ids are
+// `SYN_registry.id_of`), and bits 20.. hold that language's own state, which
+// may itself carry an injection.
+
+import core.SYN_class;
+import core.SYN_code;
+import core.SYN_lang;
+import core.SYN_lines;
+import core.SYN_markdown;
+import core.SYN_markup;
+import core.SYN_registry;
+import core.SYN_scanner;
+
+/// The compiled language `name` ("" and unknown names answer a plain-text
+/// language), cached in the scanner.
+pub SYN_lang.Lang lang_for(SYN_scanner.Scanner scanner, str name) {
+    if (!scanner.langs.contains(name)) {
+        scanner.langs.set(name, SYN_registry.load(name));
+    }
+    return scanner.langs.get(name).or(scanner.plain);
+}
+
+/// Classify `line` of `lang`, which begins in `state` (0 for the first
+/// line). Fills `scanner.spans` and `scanner.state` (what the next line begins in).
+pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    scanner.clear();
+    if (lang.mode == "markdown") {
+        SYN_markdown.scan(scanner, lang, line, state);
+    } else if (lang.mode == "markup") {
+        SYN_markup.scan(scanner, lang, line, state);
+    } else if (lang.mode == "diff") {
+        SYN_lines.scan_diff(scanner, line, state);
+    } else if (lang.mode == "gitcommit") {
+        SYN_lines.scan_gitcommit(scanner, line, state);
+    } else if (lang.mode == "gitrebase") {
+        SYN_lines.scan_gitrebase(scanner, line, state);
+    } else if (lang.mode == "yaml") {
+        SYN_lines.scan_yaml(scanner, lang, line, state);
+    } else {
+        SYN_code.scan(scanner, lang, line, state);
+    }
+    if (scanner.inj_lang == "") {
+        return;
+    }
+    str name = scanner.inj_lang;
+    int from = scanner.inj_from;
+    int stop_at = scanner.inj_to;
+    int inner_state = scanner.inj_state;
+    int host_state = scanner.state;
+    List<int> host = scanner.spans;
+    scanner.spans = [];
+    SYN_lang.Lang inner = lang_for(scanner, name);
+    str piece = line;
+    if (from != 0 || stop_at != line.size()) {
+        piece = line.substr(from, stop_at);
+    }
+    scan(scanner, inner, piece, inner_state);
+    List<int> inside = scanner.spans;
+    int inner_end = scanner.state;
+    List<int> out = [];
+    int host_at = 0;
+    while (host_at + 2 < host.size() + 0 && host[host_at] < from) {
+        out.push(host[host_at]);
+        out.push(host[host_at + 1]);
+        out.push(host[host_at + 2]);
+        host_at = host_at + 3;
+    }
+    int inner_at = 0;
+    while (inner_at + 2 < inside.size() + 0) {
+        out.push(inside[inner_at] + from);
+        out.push(inside[inner_at + 1] + from);
+        out.push(inside[inner_at + 2]);
+        inner_at = inner_at + 3;
+    }
+    while (host_at + 2 < host.size()) {
+        out.push(host[host_at]);
+        out.push(host[host_at + 1]);
+        out.push(host[host_at + 2]);
+        host_at = host_at + 3;
+    }
+    scanner.spans = out;
+    if (((host_state >> 12) & 255) != 0) {
+        scanner.state = host_state | (inner_end << 20);
+    } else {
+        scanner.state = host_state;
+    }
+}

@@ -1,0 +1,20 @@
+// go.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("go");
+    lang.keywords = "break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var";
+    lang.types = "int int8 int16 int32 int64 uint uint8 uint16 uint32 uint64 uintptr float32 float64 complex64 complex128 string bool byte rune error any comparable";
+    lang.constants = "true false nil iota";
+    lang.builtins = "append cap clear close complex copy delete imag len make max min new panic print println real recover";
+    lang.decl_fn = "func";
+    lang.decl_type = "type";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("`", "`", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

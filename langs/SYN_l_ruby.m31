@@ -1,0 +1,23 @@
+// ruby.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("ruby");
+    lang.keywords = "alias and begin BEGIN break case class def defined? do else elsif end END ensure false for if in module next nil not or redo rescue retry return self super then true undef unless until when while yield __FILE__ __LINE__ __method__ lambda proc require require_relative include extend attr_reader attr_writer attr_accessor private public protected raise loop puts print p";
+    lang.types = "String Integer Float Array Hash Symbol Object Class Module Proc Range Regexp Struct Comparable Enumerable Kernel NilClass TrueClass FalseClass";
+    lang.constants = "true false nil";
+    lang.specials = "self";
+    lang.decl_fn = "def";
+    lang.decl_type = "class module";
+    lang.word_body = "?!";
+    lang.attr = "@";
+    lang.comment_leader = "# ";
+    lang.has_heredoc = true;
+    lang.line_comment("#");
+    lang.block_comment("=begin", "=end", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    lang.string("`", "`", "\\", "");
+    return lang.build();
+}

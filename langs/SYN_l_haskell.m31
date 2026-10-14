@@ -1,0 +1,18 @@
+// haskell.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("haskell");
+    lang.keywords = "case class data default deriving do else foreign if import in infix infixl infixr instance let module newtype of then type where forall qualified as hiding family pattern proc rec mdo";
+    lang.types = "Int Integer Float Double Bool Char String Maybe Either IO Ordering List Word Rational Eq Ord Show Read Enum Bounded Num Functor Monad Applicative Foldable Traversable";
+    lang.constants = "True False Nothing Just Left Right LT EQ GT otherwise";
+    lang.decl_type = "data newtype type class instance module";
+    lang.word_body = "'";
+    lang.comment_leader = "-- ";
+    lang.line_comment("--");
+    lang.block_comment("{-", "-}", "n");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

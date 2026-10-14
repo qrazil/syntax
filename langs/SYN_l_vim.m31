@@ -1,0 +1,15 @@
+// Vim script.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("vim");
+    lang.keywords = "let unlet if elseif else endif for endfor in while endwhile function endfunction function! return call execute echo echom echoerr set setlocal syntax highlight autocmd augroup augroup! command! nnoremap inoremap vnoremap map noremap nmap imap source finish try catch finally endtry throw silent normal runtime import export";
+    lang.constants = "v:true v:false v:null";
+    lang.comment_leader = "\" ";
+    lang.has_caps = false;
+    lang.string("'", "'", "doubled", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.start_comments.push("\"");
+    return lang.build();
+}

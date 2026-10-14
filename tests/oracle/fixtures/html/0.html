@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>helix-term/src/job.rs - nox</title>
+<style>body{font-family:system-ui,sans-serif;max-width:72rem;margin:1rem auto;padding:0 1rem;color:#222;background:#fff}a{color:#0645ad;text-decoration:none}a:hover{text-decoration:underline}nav{border-bottom:1px solid #ddd;padding:.5rem 0;margin-bottom:1rem}nav a{margin-right:1rem}table{border-collapse:collapse}td,th{padding:.15rem .75rem .15rem 0;text-align:left;vertical-align:top}th{border-bottom:1px solid #ddd}pre{background:#f6f8fa;padding:.75rem;overflow-x:auto;font-size:.85rem;line-height:1.35}code,pre,.mono{font-family:ui-monospace,monospace}.muted{color:#666}.a{color:#116329}.d{color:#b31d28}.h{color:#6f42c1}.num{text-align:right}</style>
+</head><body>
+<nav><a href="../../../../">all repositories</a> <b>nox</b> <a href="../../../index.html">summary</a> <a href="../../../log.html">log</a> <a href="../../../files.html">files</a></nav>
+<h2 class="mono">helix-term/src/job.rs</h2><p class="muted">mode 100644, blob 72ed892ddf9a8eca5a48ad55a52cc9f76c332da9</p><pre>use helix_event::status::StatusMessage;
+use helix_event::{runtime_local, send_blocking};
+use helix_view::Editor;
+use once_cell::sync::OnceCell;
+
+use crate::compositor::Compositor;
+
+use futures_util::future::{BoxFuture, Future, FutureExt};
+use futures_util::stream::{FuturesUnordered, StreamExt};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+
+pub type EditorCompositorCallback = Box&lt;dyn FnOnce(&amp;mut Editor, &amp;mut Compositor) + Send&gt;;
+pub type EditorCallback = Box&lt;dyn FnOnce(&amp;mut Editor) + Send&gt;;
+
+runtime_local! {
+    static JOB_QUEUE: OnceCell&lt;Sender&lt;Callback&gt;&gt; = OnceCell::new();
+}
+
+pub async fn dispatch_callback(job: Callback) {
+    let _ = JOB_QUEUE.wait().send(job).await;
+}
+
+pub async fn dispatch(job: impl FnOnce(&amp;mut Editor, &amp;mut Compositor) + Send + &#x27;static) {
+    let _ = JOB_QUEUE
+        .wait()
+        .send(Callback::EditorCompositor(Box::new(job)))
+        .await;
+}
+
+pub fn dispatch_blocking(job: impl FnOnce(&amp;mut Editor, &amp;mut Compositor) + Send + &#x27;static) {
+    let jobs = JOB_QUEUE.wait();
+    send_blocking(jobs, Callback::EditorCompositor(Box::new(job)))
+}
+
+pub enum Callback {
+    EditorCompositor(EditorCompositorCallback),
+    Editor(EditorCallback),
+}
+
+pub type JobFuture = BoxFuture&lt;&#x27;static, anyhow::Result&lt;Option&lt;Callback&gt;&gt;&gt;;
+
+pub struct Job {
+    pub future: BoxFuture&lt;&#x27;static, anyhow::Result&lt;Option&lt;Callback&gt;&gt;&gt;,
+    /// Do we need to wait for this job to finish before exiting?
+    pub wait: bool,
+}
+
+pub struct Jobs {
+    /// jobs that need to complete before we exit.
+    pub wait_futures: FuturesUnordered&lt;JobFuture&gt;,
+    pub callbacks: Receiver&lt;Callback&gt;,
+    pub status_messages: Receiver&lt;StatusMessage&gt;,
+}
+
+impl Job {
+    pub fn new&lt;F: Future&lt;Output = anyhow::Result&lt;()&gt;&gt; + Send + &#x27;static&gt;(f: F) -&gt; Self {
+        Self {
+            future: f.map(|r| r.map(|()| None)).boxed(),
+            wait: false,
+        }
+    }
+
+    pub fn with_callback&lt;F: Future&lt;Output = anyhow::Result&lt;Callback&gt;&gt; + Send + &#x27;static&gt;(
+        f: F,
+    ) -&gt; Self {
+        Self {
+            future: f.map(|r| r.map(Some)).boxed(),
+            wait: false,
+        }
+    }
+
+    pub fn wait_before_exiting(mut self) -&gt; Self {
+        self.wait = true;
+        self
+    }
+}
+
+impl Jobs {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -&gt; Self {
+        let (tx, rx) = channel(1024);
+        let _ = JOB_QUEUE.set(tx);
+        let status_messages = helix_event::status::setup();
+        Self {
+            wait_futures: FuturesUnordered::new(),
+            callbacks: rx,
+            status_messages,
+        }
+    }
+
+    pub fn spawn&lt;F: Future&lt;Output = anyhow::Result&lt;()&gt;&gt; + Send + &#x27;static&gt;(&amp;mut self, f: F) {
+        self.add(Job::new(f));
+    }
+
+    pub fn callback&lt;F: Future&lt;Output = anyhow::Result&lt;Callback&gt;&gt; + Send + &#x27;static&gt;(
+        &amp;mut self,
+        f: F,
+    ) {
+        self.add(Job::with_callback(f));
+    }
+
+    pub fn handle_callback(
+        &amp;self,
+        editor: &amp;mut Editor,
+        compositor: &amp;mut Compositor,
+        call: anyhow::Result&lt;Option&lt;Callback&gt;&gt;,
+    ) {
+        match call {
+            Ok(None) =&gt; {}
+            Ok(Some(call)) =&gt; match call {
+                Callback::EditorCompositor(call) =&gt; call(editor, compositor),
+                Callback::Editor(call) =&gt; call(editor),
+            },

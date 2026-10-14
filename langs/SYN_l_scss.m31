@@ -1,0 +1,18 @@
+// SCSS.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("scss");
+    lang.word_start = "-$";
+    lang.word_body = "-";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.has_keys = true;
+    lang.has_caps = false;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

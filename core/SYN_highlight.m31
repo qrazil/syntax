@@ -1,0 +1,191 @@
+// The highlighter: a file's lines, the state each line starts in, and the
+// classes of any line on demand.
+//
+//   Highlighter(language: "rust")       one per buffer; "" is plain text
+//   h.set_lines(lines)                  the buffer's lines (kept by reference)
+//   h.classes(i)                        class of every byte of line i
+//   h.spans(i)                          start, end, class triples of line i
+//   h.state_at(i)                       the state line i starts in
+//   h.update(first_changed, lines)      after an edit; see below
+//
+// Only the lines asked for are tokenized, but the state at the start of a
+// line depends on every line before it, so asking for line i first walks the
+// lines not yet visited (state only; their tokens are not kept). The state at
+// each visited line start is cached: a redraw costs one line's tokenization,
+// not a re-walk.
+//
+// Incremental update: after a change the caller passes the first changed
+// line and the buffer's current lines. Lines inserted or removed after
+// `first_changed` shift the cached states along with them. The walk restarts
+// at `first_changed` and stops at the first later line whose start state
+// equals the cached one (everything after it is unchanged). `update` answers
+// [from, to): the lines whose tokens may have changed (first_changed up to,
+// not including, the line the walk converged on) -- redraw exactly those.
+
+import core.SYN_engine;
+import core.SYN_lang;
+import core.SYN_scanner;
+
+/// One classified line: the class of each byte, and the state at its end.
+pub type Tokens {
+    pub List<int> classes = [];
+    pub int state = 0;
+}
+
+pub type Highlighter {
+    pub str language = "";
+    pub List<str> lines = [];
+    // starts[i] is the state line i begins in, for i <= valid; -1 = unknown
+    pub List<int> starts = [0];
+    pub int valid = 0;
+    // how many lines the cached states describe: `lines` is the caller's
+    // list, which they edit before calling `update`
+    pub int synced = 0;
+    pub SYN_scanner.Scanner scanner = SYN_scanner.Scanner();
+}
+
+/// Replace the buffer: forget every cached state.
+pub void Highlighter.set_lines(List<str> text) {
+    lines = text;
+    synced = text.size();
+    starts = [0];
+    valid = 0;
+}
+
+/// Append the next line of the file (for a file read in order).
+pub void Highlighter.add(str text) {
+    lines.push(text);
+    synced = lines.size();
+}
+
+// make starts[0 .. index] known
+void Highlighter.walk_to(int index) {
+    if (language == "") {
+        return;
+    }
+    SYN_lang.Lang lang = SYN_engine.lang_for(scanner, language);
+    int limit = index;
+    if (limit > lines.size()) {
+        limit = lines.size();
+    }
+    while (valid < limit) {
+        SYN_engine.scan(scanner, lang, lines[valid], starts[valid]);
+        valid = valid + 1;
+        if (starts.size() > valid) {
+            starts[valid] = scanner.state;
+        } else {
+            starts.push(scanner.state);
+        }
+    }
+}
+
+/// The state line `index` begins in (0 for plain text or out of range).
+pub int Highlighter.state_at(int index) {
+    if (language == "" || index < 0 || index > lines.size()) {
+        return 0;
+    }
+    walk_to(index);
+    return starts[index];
+}
+
+/// The span triples (start, end, class) of line `index`: bytes in no span
+/// are NORMAL. Empty for plain text or an index outside the lines.
+pub List<int> Highlighter.spans(int index) {
+    if (language == "" || index < 0 || index >= lines.size()) {
+        return [];
+    }
+    walk_to(index);
+    SYN_lang.Lang lang = SYN_engine.lang_for(scanner, language);
+    SYN_engine.scan(scanner, lang, lines[index], starts[index]);
+    if (valid == index) {
+        valid = index + 1;
+        if (starts.size() > valid) {
+            starts[valid] = scanner.state;
+        } else {
+            starts.push(scanner.state);
+        }
+    }
+    return clone(scanner.spans);
+}
+
+/// The class of every byte of line `index` (empty for plain text, or an
+/// index outside the lines).
+pub List<int> Highlighter.classes(int index) {
+    if (language == "" || index < 0 || index >= lines.size()) {
+        return [];
+    }
+    spans(index);
+    return scanner.classes(lines[index].size());
+}
+
+/// The buffer changed at `first_changed` and is now `text`. Answers
+/// [from, to) as a two-element list (see the header).
+pub List<int> Highlighter.update(int first_changed, List<str> text) {
+    int old_count = synced;
+    lines = text;
+    synced = text.size();
+    int start = first_changed;
+    if (start < 0) {
+        start = 0;
+    }
+    if (language == "") {
+        return [start, start + 1];
+    }
+    if (start >= valid) {
+        // the states from here on were never computed: nothing to repair
+        return [start, start + 1];
+    }
+    int delta = text.size() - old_count;
+    // states of the lines after the edited one move with them
+    if (delta > 0) {
+        for (int step in 0 .. delta) {
+            starts.insert(start + 1, -1);
+        }
+        valid = valid + delta;
+    } else if (delta < 0) {
+        int drop = -delta;
+        if (start + 1 + drop > valid + 1) {
+            drop = valid - start;
+        }
+        for (int step in 0 .. drop) {
+            starts.remove_at(start + 1);
+        }
+        valid = valid - drop;
+    }
+    SYN_lang.Lang lang = SYN_engine.lang_for(scanner, language);
+    int count = text.size();
+    int line = start;
+    while (line < count) {
+        SYN_engine.scan(scanner, lang, text[line], starts[line]);
+        int after = scanner.state;
+        int next = line + 1;
+        if (next > valid) {
+            starts.push(after);
+            valid = next;
+            return [start, next];
+        }
+        if (starts[next] == after) {
+            return [start, next];
+        }
+        starts[next] = after;
+        line = next;
+    }
+    return [start, count];
+}
+
+/// Classify one line of `lang` that begins in `state`; without a highlighter.
+/// A fresh scanner per call, so use a `Highlighter` for a whole file.
+pub Tokens classify(str lang, str line, int state) {
+    Tokens out = Tokens();
+    if (lang == "") {
+        for (int index in 0 .. line.size()) {
+            out.classes.push(0);
+        }
+        return out;
+    }
+    SYN_scanner.Scanner scanner = SYN_scanner.Scanner();
+    SYN_engine.scan(scanner, SYN_engine.lang_for(scanner, lang), line, state);
+    out.classes = scanner.classes(line.size());
+    out.state = scanner.state;
+    return out;
+}

@@ -1,0 +1,24 @@
+// python.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("python");
+    lang.keywords = "and as assert async await break continue del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case";
+    lang.types = "int str float bool list dict set tuple bytes object type frozenset bytearray complex range";
+    lang.constants = "True False None Ellipsis NotImplemented";
+    lang.builtins = "print len open range enumerate zip map filter sorted sum min max abs isinstance issubclass getattr setattr hasattr super iter next input repr any all id hash vars dir round";
+    lang.specials = "self cls";
+    lang.decl_fn = "def";
+    lang.decl_type = "class";
+    lang.attr = "@";
+    lang.str_prefix = "rbfuRBFU";
+    lang.comment_leader = "# ";
+    lang.indent_style = "colon";
+    lang.line_comment("#");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("'''", "'''", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

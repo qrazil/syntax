@@ -1,0 +1,17 @@
+// jsonc.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("jsonc");
+    lang.constants = "true false null";
+    lang.comment_leader = "// ";
+    lang.has_string_keys = true;
+    lang.has_signed_numbers = true;
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

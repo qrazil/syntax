@@ -1,0 +1,11 @@
+// CSV.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("csv");
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

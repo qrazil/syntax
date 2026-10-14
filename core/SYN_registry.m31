@@ -1,0 +1,297 @@
+// The language registry: names, ids and loading. Generated once and then
+// edited by hand: a language is one file in langs/ and one line in each
+// of `names`, `load` below and the tables in SYN_tables.
+
+import core.SYN_lang;
+import langs.SYN_l_asm;
+import langs.SYN_l_awk;
+import langs.SYN_l_bat;
+import langs.SYN_l_c;
+import langs.SYN_l_clojure;
+import langs.SYN_l_cmake;
+import langs.SYN_l_cpp;
+import langs.SYN_l_csharp;
+import langs.SYN_l_css;
+import langs.SYN_l_csv;
+import langs.SYN_l_dart;
+import langs.SYN_l_diff;
+import langs.SYN_l_dockerfile;
+import langs.SYN_l_elixir;
+import langs.SYN_l_erlang;
+import langs.SYN_l_fish;
+import langs.SYN_l_fsharp;
+import langs.SYN_l_gitcommit;
+import langs.SYN_l_gitignore;
+import langs.SYN_l_gitrebase;
+import langs.SYN_l_go;
+import langs.SYN_l_gomod;
+import langs.SYN_l_graphql;
+import langs.SYN_l_groovy;
+import langs.SYN_l_haskell;
+import langs.SYN_l_hcl;
+import langs.SYN_l_html;
+import langs.SYN_l_ini;
+import langs.SYN_l_java;
+import langs.SYN_l_javascript;
+import langs.SYN_l_json;
+import langs.SYN_l_jsonc;
+import langs.SYN_l_julia;
+import langs.SYN_l_kotlin;
+import langs.SYN_l_latex;
+import langs.SYN_l_less;
+import langs.SYN_l_lua;
+import langs.SYN_l_m31;
+import langs.SYN_l_makefile;
+import langs.SYN_l_markdown;
+import langs.SYN_l_nginx;
+import langs.SYN_l_nim;
+import langs.SYN_l_nix;
+import langs.SYN_l_ocaml;
+import langs.SYN_l_perl;
+import langs.SYN_l_php;
+import langs.SYN_l_plain;
+import langs.SYN_l_powershell;
+import langs.SYN_l_protobuf;
+import langs.SYN_l_python;
+import langs.SYN_l_r;
+import langs.SYN_l_ruby;
+import langs.SYN_l_rust;
+import langs.SYN_l_scala;
+import langs.SYN_l_scss;
+import langs.SYN_l_sh;
+import langs.SYN_l_sql;
+import langs.SYN_l_svelte;
+import langs.SYN_l_swift;
+import langs.SYN_l_toml;
+import langs.SYN_l_typescript;
+import langs.SYN_l_vim;
+import langs.SYN_l_vue;
+import langs.SYN_l_xml;
+import langs.SYN_l_yaml;
+import langs.SYN_l_zig;
+
+/// Every language name, in id order (an id is the 1-based position).
+pub List<str> names() {
+    return ["c", "cpp", "go", "javascript", "typescript", "json", "jsonc", "m31", "python", "rust", "sh", "toml", "yaml", "markdown", "java", "csharp", "kotlin", "swift", "php", "ruby", "lua", "perl", "r", "dart", "scala", "groovy", "haskell", "elixir", "erlang", "clojure", "ocaml", "fsharp", "zig", "nim", "julia", "sql", "css", "scss", "less", "dockerfile", "makefile", "cmake", "nix", "powershell", "bat", "fish", "vim", "awk", "hcl", "protobuf", "graphql", "html", "xml", "vue", "svelte", "diff", "gitcommit", "gitrebase", "gitignore", "ini", "csv", "latex", "asm", "gomod", "nginx"];
+}
+
+/// The 1-based id of a language name, 0 when unknown.
+pub int id_of(str name) {
+    int position = 1;
+    for (str known in names()) {
+        if (known == name) {
+            return position;
+        }
+        position = position + 1;
+    }
+    return 0;
+}
+
+/// The name of an id, "" when unknown.
+pub str name_of(int id) {
+    List<str> all = names();
+    if (id < 1 || id > all.size()) {
+        return "";
+    }
+    return all[id - 1];
+}
+
+/// Build the language called `name`; unknown names answer plain text.
+pub SYN_lang.Lang load(str name) {
+    if (name == "c") {
+        return SYN_l_c.define();
+    }
+    if (name == "cpp") {
+        return SYN_l_cpp.define();
+    }
+    if (name == "go") {
+        return SYN_l_go.define();
+    }
+    if (name == "javascript") {
+        return SYN_l_javascript.define();
+    }
+    if (name == "typescript") {
+        return SYN_l_typescript.define();
+    }
+    if (name == "json") {
+        return SYN_l_json.define();
+    }
+    if (name == "jsonc") {
+        return SYN_l_jsonc.define();
+    }
+    if (name == "m31") {
+        return SYN_l_m31.define();
+    }
+    if (name == "python") {
+        return SYN_l_python.define();
+    }
+    if (name == "rust") {
+        return SYN_l_rust.define();
+    }
+    if (name == "sh") {
+        return SYN_l_sh.define();
+    }
+    if (name == "toml") {
+        return SYN_l_toml.define();
+    }
+    if (name == "yaml") {
+        return SYN_l_yaml.define();
+    }
+    if (name == "markdown") {
+        return SYN_l_markdown.define();
+    }
+    if (name == "java") {
+        return SYN_l_java.define();
+    }
+    if (name == "csharp") {
+        return SYN_l_csharp.define();
+    }
+    if (name == "kotlin") {
+        return SYN_l_kotlin.define();
+    }
+    if (name == "swift") {
+        return SYN_l_swift.define();
+    }
+    if (name == "php") {
+        return SYN_l_php.define();
+    }
+    if (name == "ruby") {
+        return SYN_l_ruby.define();
+    }
+    if (name == "lua") {
+        return SYN_l_lua.define();
+    }
+    if (name == "perl") {
+        return SYN_l_perl.define();
+    }
+    if (name == "r") {
+        return SYN_l_r.define();
+    }
+    if (name == "dart") {
+        return SYN_l_dart.define();
+    }
+    if (name == "scala") {
+        return SYN_l_scala.define();
+    }
+    if (name == "groovy") {
+        return SYN_l_groovy.define();
+    }
+    if (name == "haskell") {
+        return SYN_l_haskell.define();
+    }
+    if (name == "elixir") {
+        return SYN_l_elixir.define();
+    }
+    if (name == "erlang") {
+        return SYN_l_erlang.define();
+    }
+    if (name == "clojure") {
+        return SYN_l_clojure.define();
+    }
+    if (name == "ocaml") {
+        return SYN_l_ocaml.define();
+    }
+    if (name == "fsharp") {
+        return SYN_l_fsharp.define();
+    }
+    if (name == "zig") {
+        return SYN_l_zig.define();
+    }
+    if (name == "nim") {
+        return SYN_l_nim.define();
+    }
+    if (name == "julia") {
+        return SYN_l_julia.define();
+    }
+    if (name == "sql") {
+        return SYN_l_sql.define();
+    }
+    if (name == "css") {
+        return SYN_l_css.define();
+    }
+    if (name == "scss") {
+        return SYN_l_scss.define();
+    }
+    if (name == "less") {
+        return SYN_l_less.define();
+    }
+    if (name == "dockerfile") {
+        return SYN_l_dockerfile.define();
+    }
+    if (name == "makefile") {
+        return SYN_l_makefile.define();
+    }
+    if (name == "cmake") {
+        return SYN_l_cmake.define();
+    }
+    if (name == "nix") {
+        return SYN_l_nix.define();
+    }
+    if (name == "powershell") {
+        return SYN_l_powershell.define();
+    }
+    if (name == "bat") {
+        return SYN_l_bat.define();
+    }
+    if (name == "fish") {
+        return SYN_l_fish.define();
+    }
+    if (name == "vim") {
+        return SYN_l_vim.define();
+    }
+    if (name == "awk") {
+        return SYN_l_awk.define();
+    }
+    if (name == "hcl") {
+        return SYN_l_hcl.define();
+    }
+    if (name == "protobuf") {
+        return SYN_l_protobuf.define();
+    }
+    if (name == "graphql") {
+        return SYN_l_graphql.define();
+    }
+    if (name == "html") {
+        return SYN_l_html.define();
+    }
+    if (name == "xml") {
+        return SYN_l_xml.define();
+    }
+    if (name == "vue") {
+        return SYN_l_vue.define();
+    }
+    if (name == "svelte") {
+        return SYN_l_svelte.define();
+    }
+    if (name == "diff") {
+        return SYN_l_diff.define();
+    }
+    if (name == "gitcommit") {
+        return SYN_l_gitcommit.define();
+    }
+    if (name == "gitrebase") {
+        return SYN_l_gitrebase.define();
+    }
+    if (name == "gitignore") {
+        return SYN_l_gitignore.define();
+    }
+    if (name == "ini") {
+        return SYN_l_ini.define();
+    }
+    if (name == "csv") {
+        return SYN_l_csv.define();
+    }
+    if (name == "latex") {
+        return SYN_l_latex.define();
+    }
+    if (name == "asm") {
+        return SYN_l_asm.define();
+    }
+    if (name == "gomod") {
+        return SYN_l_gomod.define();
+    }
+    if (name == "nginx") {
+        return SYN_l_nginx.define();
+    }
+    return SYN_l_plain.define();
+}

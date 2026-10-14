@@ -1,0 +1,666 @@
+// The generic code scanner: comments, strings, numbers, words, driven by a
+// compiled `Lang`. One pass over the line, a table lookup per byte.
+//
+// State carried across lines (low 12 bits; the rest belongs to the host):
+//   kind = state & 15            0 plain, 1 inside a block comment,
+//                                2 inside a multi-line string,
+//                                3 inside a heredoc (hash of its end word in bits 12..)
+//   index = (state >> 4) & 15    which comment or string form
+//   level = (state >> 8) & 15    nesting depth, or `=` count of a long bracket
+
+import core.SYN_class;
+import core.SYN_lang;
+import core.SYN_scanner;
+
+const int K_BLOCK = 1;
+const int K_STRING = 2;
+const int K_HEREDOC = 3;
+
+bool is_space(int byte) {
+    return byte == 32 || byte == 9;
+}
+
+pub bool is_match_at(str line, int position, str pattern) {
+    int length = pattern.size();
+    if (position < 0 || position + length > line.size()) {
+        return false;
+    }
+    for (int index in 0 .. length) {
+        if (line.byte_at(position + index) != pattern.byte_at(index)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// the position after the closing delimiter of block comment form `form`,
+// scanning from `from` with `depth` open levels (or the `=` count of a long
+// bracket); a negative answer -(d + 1) means still open at depth d
+int block_end(SYN_lang.Lang lang, str line, int from, int form, int depth) {
+    str closer = lang.block_comments[form * 3 + 1];
+    str flags = lang.block_comments[form * 3 + 2];
+    bool is_nesting = flags.contains("n");
+    if (flags.contains("L")) {
+        closer = "]" + "=".repeat(depth) + "]";
+    }
+    str open = lang.block_comments[form * 3];
+    int level = depth;
+    int position = from;
+    int size = line.size();
+    while (position < size) {
+        if (is_nesting && is_match_at(line, position, open)) {
+            level = level + 1;
+            position = position + open.size();
+        } else if (is_match_at(line, position, closer)) {
+            position = position + closer.size();
+            level = level - 1;
+            if (level <= 0 || !is_nesting) {
+                return position;
+            }
+        } else {
+            position = position + 1;
+        }
+    }
+    return -(level + 1);
+}
+
+// the position after the closing delimiter of string form `form` scanning
+// from `from`, or -1 when the line ends first
+int string_end(SYN_lang.Lang lang, str line, int from, int form, int level) {
+    str closer = lang.strings[form * 4 + 1];
+    str esc = lang.strings[form * 4 + 2];
+    str flags = lang.strings[form * 4 + 3];
+    if (flags.contains("R")) {
+        closer = "\"" + "#".repeat(level);
+    } else if (flags.contains("L")) {
+        closer = "]" + "=".repeat(level) + "]";
+    }
+    int esc_byte = -1;
+    if (esc.size() == 1) {
+        esc_byte = esc.byte_at(0);
+    }
+    bool is_doubled = esc == "doubled";
+    int first = closer.byte_at(0);
+    int size = line.size();
+    int position = from;
+    while (position < size) {
+        int byte = line.byte_at(position);
+        if (byte == esc_byte) {
+            position = position + 2;
+        } else if (byte == first && is_match_at(line, position, closer)) {
+            if (is_doubled && is_match_at(line, position + closer.size(), closer)) {
+                position = position + 2 * closer.size();
+            } else {
+                return position + closer.size();
+            }
+        } else {
+            position = position + 1;
+        }
+    }
+    return -1;
+}
+
+int number_end(str line, int from) {
+    int size = line.size();
+    int position = from;
+    if (position + 1 < size && line.byte_at(position) == 48) {
+        int next = line.byte_at(position + 1);
+        if (next == 120 || next == 88 || next == 98 || next == 66 || next == 111 || next == 79) {
+            position = position + 2;
+            while (position < size && is_alnum(line.byte_at(position))) {
+                position = position + 1;
+            }
+            return position;
+        }
+    }
+    while (position < size) {
+        int byte = line.byte_at(position);
+        if ((byte >= 48 && byte <= 57) || byte == 95) {
+            position = position + 1;
+        } else if (byte == 46 && position + 1 < size && line.byte_at(position + 1) >= 48 && line.byte_at(position + 1) <= 57) {
+            position = position + 1;
+        } else if ((byte == 101 || byte == 69) && position + 1 < size && ((line.byte_at(position + 1) >= 48 && line.byte_at(position + 1) <= 57) || line.byte_at(position + 1) == 45 || line.byte_at(position + 1) == 43)) {
+            position = position + 2;
+        } else if (is_alpha(byte)) {
+            position = position + 1;
+        } else {
+            break;
+        }
+    }
+    return position;
+}
+
+bool is_alpha(int byte) {
+    return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128;
+}
+
+pub bool is_alnum(int byte) {
+    return is_alpha(byte) || (byte >= 48 && byte <= 57);
+}
+
+// a short char literal at `position` (the quote): the position after it, or -1
+int char_end(str line, int position, int quote) {
+    int size = line.size();
+    if (position + 2 >= size) {
+        return -1;
+    }
+    int byte = line.byte_at(position + 1);
+    if (byte == 92) {
+        int probe = position + 2;
+        int limit = position + 12;
+        if (limit > size) {
+            limit = size;
+        }
+        while (probe < limit) {
+            if (line.byte_at(probe) == quote) {
+                return probe + 1;
+            }
+            probe = probe + 1;
+        }
+        return -1;
+    }
+    int length = 1;
+    if (byte >= 240) {
+        length = 4;
+    } else if (byte >= 224) {
+        length = 3;
+    } else if (byte >= 192) {
+        length = 2;
+    }
+    if (position + 1 + length < size && line.byte_at(position + 1 + length) == quote && byte != quote) {
+        return position + 2 + length;
+    }
+    return -1;
+}
+
+// does a string form start at `position`? the form index, or -1
+int string_form_at(SYN_lang.Lang lang, str line, int position) {
+    int form = 0;
+    int count = lang.strings.size() / 4;
+    while (form < count) {
+        str open = lang.strings[form * 4];
+        str flags = lang.strings[form * 4 + 3];
+        if (is_match_at(line, position, open)) {
+            if (flags.contains("R")) {
+                int probe = position + open.size();
+                while (probe < line.size() && line.byte_at(probe) == 35) {
+                    probe = probe + 1;
+                }
+                if (probe < line.size() && line.byte_at(probe) == 34 && (position == 0 || !is_alnum(line.byte_at(position - 1)))) {
+                    return form;
+                }
+            } else if (flags.contains("L")) {
+                int probe = position + open.size();
+                while (probe < line.size() && line.byte_at(probe) == 61) {
+                    probe = probe + 1;
+                }
+                if (probe < line.size() && line.byte_at(probe) == 91) {
+                    return form;
+                }
+            } else if (flags.contains("c")) {
+                if (char_end(line, position, open.byte_at(0)) > 0) {
+                    return form;
+                }
+            } else {
+                return form;
+            }
+        }
+        form = form + 1;
+    }
+    return -1;
+}
+
+// the end of the opening delimiter of a Rust raw / Lua long form at `position`,
+// and the level, packed: (level << 20) | position after the opening
+int open_end(SYN_lang.Lang lang, str line, int position, int form) {
+    str open = lang.strings[form * 4];
+    str flags = lang.strings[form * 4 + 3];
+    int probe = position + open.size();
+    int level = 0;
+    if (flags.contains("R")) {
+        while (probe < line.size() && line.byte_at(probe) == 35) {
+            level = level + 1;
+            probe = probe + 1;
+        }
+        probe = probe + 1;
+    } else if (flags.contains("L")) {
+        while (probe < line.size() && line.byte_at(probe) == 61) {
+            level = level + 1;
+            probe = probe + 1;
+        }
+        probe = probe + 1;
+    }
+    if (level > 15) {
+        level = 15;
+    }
+    return (level << 20) | probe;
+}
+
+// does a block comment form start at `position`? the form index, or -1
+int block_form_at(SYN_lang.Lang lang, str line, int position) {
+    int form = 0;
+    int count = lang.block_comments.size() / 3;
+    while (form < count) {
+        str open = lang.block_comments[form * 3];
+        if (is_match_at(line, position, open)) {
+            if (lang.block_comments[form * 3 + 2].contains("L")) {
+                int probe = position + open.size();
+                while (probe < line.size() && line.byte_at(probe) == 61) {
+                    probe = probe + 1;
+                }
+                if (probe < line.size() && line.byte_at(probe) == 91) {
+                    return form;
+                }
+            } else {
+                return form;
+            }
+        }
+        form = form + 1;
+    }
+    return -1;
+}
+
+bool is_line_comment_at(SYN_lang.Lang lang, str line, int position) {
+    if (lang.needs_comment_space && position > 0 && !is_space(line.byte_at(position - 1))) {
+        return false;
+    }
+    for (str open in lang.line_comments) {
+        if (is_match_at(line, position, open)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Scan one line of a code language from `state`; fills `scanner.spans` and
+/// `scanner.state`.
+pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
+    int size = line.size();
+    int position = 0;
+    int kind = state & 15;
+    int form = (state >> 4) & 15;
+    int level = (state >> 8) & 15;
+    scanner.state = 0;
+    if (kind == K_BLOCK) {
+        int end = block_end(lang, line, 0, form, level);
+        if (end < 0) {
+            scanner.emit(0, size, SYN_class.COMMENT);
+            scanner.state = K_BLOCK | (form << 4) | ((-end - 1) << 8);
+            if (level > 15) {
+                scanner.state = K_BLOCK | (form << 4) | (15 << 8);
+            }
+            return;
+        }
+        scanner.emit(0, end, SYN_class.COMMENT);
+        position = end;
+    } else if (kind == K_STRING) {
+        int end = string_end(lang, line, 0, form, level);
+        if (end < 0) {
+            scanner.emit(0, size, SYN_class.STRING);
+            scanner.state = state;
+            return;
+        }
+        scanner.emit(0, end, SYN_class.STRING);
+        position = end;
+    } else if (kind == K_HEREDOC) {
+        int begin = 0;
+        int finish = size;
+        while (begin < finish && is_space(line.byte_at(begin))) {
+            begin = begin + 1;
+        }
+        while (finish > begin && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
+            finish = finish - 1;
+        }
+        scanner.emit(0, size, SYN_class.STRING);
+        if (SYN_lang.hash_of(line, begin, finish, false) == (state >> 12)) {
+            scanner.state = 0;
+        } else {
+            scanner.state = state;
+        }
+        return;
+    }
+    int pending = 0;
+    int heredoc = 0;
+    bool is_first = true;
+    if (lang.has_sections && position == 0) {
+        // `[table]` / `[[array]]` / `[section]`: the whole line names a table
+        int begin = 0;
+        while (begin < size && is_space(line.byte_at(begin))) {
+            begin = begin + 1;
+        }
+        int finish = size;
+        while (finish > begin && (is_space(line.byte_at(finish - 1)) || line.byte_at(finish - 1) == 13)) {
+            finish = finish - 1;
+        }
+        if (begin < finish && line.byte_at(begin) == 91 && line.byte_at(finish - 1) == 93) {
+            int inner = begin;
+            while (inner < finish && line.byte_at(inner) == 91) {
+                inner = inner + 1;
+            }
+            int stop = finish;
+            while (stop > inner && line.byte_at(stop - 1) == 93) {
+                stop = stop - 1;
+            }
+            scanner.emit(inner, stop, SYN_class.TYPE);
+            return;
+        }
+    }
+    while (position < size) {
+        int byte = line.byte_at(position);
+        int mask = lang.start[byte];
+        if (mask == 0) {
+            if (byte != 32 && byte != 9) {
+                pending = 0;
+            }
+            position = position + 1;
+            continue;
+        }
+        if (is_first && (mask & SYN_lang.M_PREPROC) != 0) {
+            // only the is_first non-blank byte of the line
+            bool is_lead = true;
+            for (int step in 0 .. position) {
+                if (!is_space(line.byte_at(step))) {
+                    is_lead = false;
+                }
+            }
+            if (is_lead) {
+                int stop = position + 1;
+                while (stop < size && is_space(line.byte_at(stop))) {
+                    stop = stop + 1;
+                }
+                while (stop < size && is_alnum(line.byte_at(stop))) {
+                    stop = stop + 1;
+                }
+                scanner.emit(position, stop, SYN_class.PREPROC);
+                position = stop;
+                is_first = false;
+                if (lang.has_include_angle) {
+                    int rest = position;
+                    while (rest < size && is_space(line.byte_at(rest))) {
+                        rest = rest + 1;
+                    }
+                    if (rest < size && line.byte_at(rest) == 60) {
+                        int closer = rest + 1;
+                        while (closer < size && line.byte_at(closer) != 62) {
+                            closer = closer + 1;
+                        }
+                        if (closer < size) {
+                            scanner.emit(rest, closer + 1, SYN_class.STRING);
+                            position = closer + 1;
+                        }
+                    }
+                }
+                continue;
+            }
+        }
+        bool is_at_start = is_first;
+        is_first = false;
+        if ((mask & SYN_lang.M_COMMENT) != 0) {
+            if (is_at_start) {
+                for (str open in lang.start_comments) {
+                    if (is_match_at(line, position, open)) {
+                        scanner.emit(position, size, SYN_class.COMMENT);
+                        return;
+                    }
+                }
+            }
+            int block_form = block_form_at(lang, line, position);
+            if (block_form >= 0) {
+                str open = lang.block_comments[block_form * 3];
+                str flags = lang.block_comments[block_form * 3 + 2];
+                int from = position + open.size();
+                int depth = 1;
+                if (flags.contains("L")) {
+                    depth = 0;
+                    while (from < size && line.byte_at(from) == 61) {
+                        depth = depth + 1;
+                        from = from + 1;
+                    }
+                    from = from + 1;
+                }
+                int end = block_end(lang, line, from, block_form, depth);
+                if (end < 0) {
+                    scanner.emit(position, size, SYN_class.COMMENT);
+                    int carry = -end - 1;
+                    if (carry > 15) {
+                        carry = 15;
+                    }
+                    scanner.state = K_BLOCK | (block_form << 4) | (carry << 8);
+                    return;
+                }
+                scanner.emit(position, end, SYN_class.COMMENT);
+                position = end;
+                pending = 0;
+                continue;
+            }
+            if (is_line_comment_at(lang, line, position)) {
+                scanner.emit(position, size, SYN_class.COMMENT);
+                return;
+            }
+        }
+        if ((mask & SYN_lang.M_STRING) != 0) {
+            int str_form = string_form_at(lang, line, position);
+            if (str_form >= 0) {
+                int body = position + lang.strings[str_form * 4].size();
+                int lvl = 0;
+                str flags = lang.strings[str_form * 4 + 3];
+                if (flags.contains("R") || flags.contains("L")) {
+                    int packed = open_end(lang, line, position, str_form);
+                    body = packed & 0xFFFFF;
+                    lvl = packed >> 20;
+                }
+                int end = string_end(lang, line, body, str_form, lvl);
+                int class_value = SYN_class.STRING;
+                if (end < 0) {
+                    scanner.emit(position, size, class_value);
+                    if (flags.contains("m")) {
+                        scanner.state = K_STRING | (str_form << 4) | (lvl << 8);
+                    }
+                    return;
+                }
+                if (lang.has_string_keys) {
+                    int look = end;
+                    while (look < size && is_space(line.byte_at(look))) {
+                        look = look + 1;
+                    }
+                    if (look < size && line.byte_at(look) == 58) {
+                        class_value = SYN_class.PROPERTY;
+                    }
+                }
+                scanner.emit(position, end, class_value);
+                position = end;
+                pending = 0;
+                continue;
+            }
+        }
+        if ((mask & SYN_lang.M_DIGIT) != 0) {
+            int next = 0;
+            if (position + 1 < size) {
+                next = line.byte_at(position + 1);
+            }
+            bool is_starting = byte >= 48 && byte <= 57;
+            if (byte == 45) {
+                is_starting = next >= 48 && next <= 57 && (position == 0 || !(is_alnum(line.byte_at(position - 1)) || line.byte_at(position - 1) == 41 || line.byte_at(position - 1) == 93));
+            }
+            if (is_starting) {
+                int from = position;
+                if (byte == 45) {
+                    from = position + 1;
+                }
+                int end = number_end(line, from);
+                scanner.emit(position, end, SYN_class.NUMBER);
+                position = end;
+                pending = 0;
+                continue;
+            }
+        }
+        if ((mask & SYN_lang.M_WORD) != 0) {
+            int stop = position + 1;
+            while (stop < size && (lang.start[line.byte_at(stop)] & SYN_lang.M_BODY) != 0) {
+                stop = stop + 1;
+            }
+            // a string prefix: r"..", b'..', f".."
+            if (stop - position <= 2 && stop < size && lang.str_prefix.size() > 0 && (line.byte_at(stop) == 34 || line.byte_at(stop) == 39)) {
+                bool is_all = true;
+                for (int step in position .. stop) {
+                    if (!lang.str_prefix.contains(str.from_chars([line.byte_at(step)]))) {
+                        is_all = false;
+                    }
+                }
+                if (is_all) {
+                    int str_form = string_form_at(lang, line, stop);
+                    if (str_form >= 0) {
+                        int body = stop + lang.strings[str_form * 4].size();
+                        str flags = lang.strings[str_form * 4 + 3];
+                        int end = string_end(lang, line, body, str_form, 0);
+                        if (end < 0) {
+                            scanner.emit(position, size, SYN_class.STRING);
+                            if (flags.contains("m")) {
+                                scanner.state = K_STRING | (str_form << 4);
+                            }
+                            return;
+                        }
+                        scanner.emit(position, end, SYN_class.STRING);
+                        position = end;
+                        continue;
+                    }
+                }
+            }
+            int entry = lang.lookup(line, position, stop);
+            int class_value = SYN_class.NORMAL;
+            int look = stop;
+            while (look < size && is_space(line.byte_at(look))) {
+                look = look + 1;
+            }
+            if (entry != 0) {
+                class_value = entry & 0xFF;
+                int decl = (entry >> 8) & 3;
+                if (decl != 0) {
+                    pending = decl;
+                } else {
+                    pending = 0;
+                }
+                if (class_value == SYN_class.KEYWORD && pending == 0) {
+                    pending = 0;
+                }
+            } else if (pending != 0) {
+                if (pending == SYN_lang.DECL_FN) {
+                    class_value = SYN_class.FUNCTION;
+                } else {
+                    class_value = SYN_class.TYPE;
+                }
+                pending = 0;
+            } else if (lang.has_keys && look < size && ((line.byte_at(look) == 58 && !(look + 1 < size && line.byte_at(look + 1) == 58)) || (line.byte_at(look) == 61 && !(look + 1 < size && line.byte_at(look + 1) == 61)))) {
+                class_value = SYN_class.PROPERTY;
+            } else if (lang.has_calls && stop < size && line.byte_at(stop) == 40) {
+                class_value = SYN_class.CALL;
+            } else if (lang.has_bang_calls && stop + 1 < size && line.byte_at(stop) == 33 && (line.byte_at(stop + 1) == 40 || line.byte_at(stop + 1) == 91 || line.byte_at(stop + 1) == 123)) {
+                class_value = SYN_class.CALL;
+            } else if (lang.has_caps && line.byte_at(position) >= 65 && line.byte_at(position) <= 90 && stop - position > 1) {
+                bool has_lower = false;
+                for (int step in position + 1 .. stop) {
+                    int chr = line.byte_at(step);
+                    if (chr >= 97 && chr <= 122) {
+                        has_lower = true;
+                    }
+                }
+                if (has_lower) {
+                    class_value = SYN_class.TYPE;
+                } else {
+                    class_value = SYN_class.CONSTANT;
+                }
+            }
+            scanner.emit(position, stop, class_value);
+            position = stop;
+            continue;
+        }
+        if ((mask & SYN_lang.M_SIGIL) != 0 && position + 1 < size) {
+            int stop = position + 1;
+            if (line.byte_at(stop) == 123) {
+                int closer = stop;
+                while (closer < size && line.byte_at(closer) != 125) {
+                    closer = closer + 1;
+                }
+                if (closer < size) {
+                    stop = closer + 1;
+                } else {
+                    stop = size;
+                }
+            } else if (line.byte_at(stop) == 40) {
+                stop = position + 1;
+            } else {
+                while (stop < size && is_alnum(line.byte_at(stop)) || (stop < size && line.byte_at(stop) >= 48 && line.byte_at(stop) <= 57)) {
+                    stop = stop + 1;
+                }
+                if (stop == position + 1 && "?!#@*$-".contains(str.from_chars([line.byte_at(stop)]))) {
+                    stop = stop + 1;
+                }
+            }
+            if (stop > position + 1) {
+                scanner.emit(position, stop, SYN_class.SPECIAL);
+                position = stop;
+                pending = 0;
+                continue;
+            }
+        }
+        if ((mask & SYN_lang.M_ATTR) != 0) {
+            bool is_done = false;
+            for (str open in lang.attr_open) {
+                if (!is_done && is_match_at(line, position, open)) {
+                    int depth = 0;
+                    int stop = position + open.size();
+                    depth = 1;
+                    while (stop < size && depth > 0) {
+                        int chr = line.byte_at(stop);
+                        if (chr == 91) {
+                            depth = depth + 1;
+                        } else if (chr == 93) {
+                            depth = depth - 1;
+                        }
+                        stop = stop + 1;
+                    }
+                    scanner.emit(position, stop, SYN_class.ATTRIBUTE);
+                    position = stop;
+                    is_done = true;
+                }
+            }
+            if (is_done) {
+                continue;
+            }
+            if (lang.attr.contains(str.from_chars([byte])) && position + 1 < size && is_alpha(line.byte_at(position + 1)) && (position == 0 || !is_alnum(line.byte_at(position - 1)))) {
+                int stop = position + 1;
+                while (stop < size && (is_alnum(line.byte_at(stop)) || line.byte_at(stop) == 46)) {
+                    stop = stop + 1;
+                }
+                scanner.emit(position, stop, SYN_class.ATTRIBUTE);
+                position = stop;
+                continue;
+            }
+        }
+        if (lang.has_heredoc && byte == 60 && position + 2 < size && line.byte_at(position + 1) == 60 && line.byte_at(position + 2) != 60) {
+            int probe = position + 2;
+            if (line.byte_at(probe) == 45 || line.byte_at(probe) == 126) {
+                probe = probe + 1;
+            }
+            int quote = 0;
+            if (probe < size && (line.byte_at(probe) == 39 || line.byte_at(probe) == 34)) {
+                quote = line.byte_at(probe);
+                probe = probe + 1;
+            }
+            int word = probe;
+            while (probe < size && is_alnum(line.byte_at(probe))) {
+                probe = probe + 1;
+            }
+            if (probe > word && is_alpha(line.byte_at(word))) {
+                heredoc = SYN_lang.hash_of(line, word, probe, false);
+                position = probe;
+                continue;
+            }
+        }
+        pending = 0;
+        position = position + 1;
+    }
+    if (heredoc != 0) {
+        scanner.state = K_HEREDOC | (heredoc << 12);
+    }
+}

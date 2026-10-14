@@ -1,0 +1,22 @@
+// groovy.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("groovy");
+    lang.keywords = "abstract as assert break case catch class const continue def default do else enum extends final finally for goto if implements import in instanceof interface native new package private protected public return static strictfp super switch synchronized this threadsafe throw throws transient try volatile while var trait";
+    lang.types = "int long short byte float double boolean char void String Object List Map Set Closure";
+    lang.constants = "true false null";
+    lang.specials = "this super";
+    lang.decl_fn = "def";
+    lang.decl_type = "class interface enum trait";
+    lang.attr = "@";
+    lang.comment_leader = "// ";
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("'''", "'''", "\\", "m");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

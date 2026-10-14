@@ -1,0 +1,48 @@
+// Dump the tokens this library produces for files, for the oracle
+// comparison (tests/oracle/compare.py).
+//
+//   dump LANG PATH [LANG PATH ...]     (LANG "-" detects it from the path)
+//
+// Output, per file: `@@ LANG PATH`, then one `LINE START END CLASSNAME` per
+// token (line and byte columns 0-based, END exclusive; classes are tree-sitter
+// capture names, NORMAL bytes omitted), or `!! reason` when unreadable.
+
+import io;
+import os;
+import core.SYN_class;
+import core.SYN_detect;
+import core.SYN_highlight;
+
+List<str> argv = os.arguments();
+int next = 1;
+while (next + 1 < argv.size()) {
+    str lang = argv[next];
+    str path = argv[next + 1];
+    next = next + 2;
+    match (io.read(path)) {
+        case Ok(str text): {
+            List<str> lines = text.split("\n");
+            if (lang == "-") {
+                str first = "";
+                if (lines.size() > 0) {
+                    first = lines[0];
+                }
+                lang = SYN_detect.language_of(path, first);
+            }
+            print("@@ " + lang + " " + path);
+            SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: lang);
+            highlighter.set_lines(lines);
+            for (int row in 0 .. lines.size()) {
+                List<int> spans = highlighter.spans(row);
+                int step = 0;
+                while (step + 2 < spans.size()) {
+                    print(str(row) + " " + str(spans[step]) + " " + str(spans[step + 1]) + " " + SYN_class.name_of(spans[step + 2]));
+                    step = step + 3;
+                }
+            }
+        }
+        case Err(io.Error failure): {
+            print("!! " + path + ": " + failure.to_str());
+        }
+    }
+}

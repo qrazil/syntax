@@ -1,0 +1,24 @@
+// php.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("php");
+    lang.keywords = "abstract and array as break callable case catch class clone const continue declare default die do echo else elseif empty enddeclare endfor endforeach endif endswitch endwhile eval exit extends final finally fn for foreach function global goto if implements include include_once instanceof insteadof interface isset list match namespace new or print private protected public readonly require require_once return static switch throw trait try unset use var while xor yield enum";
+    lang.types = "int float bool string array object mixed void null never iterable callable self parent static";
+    lang.constants = "true false null TRUE FALSE NULL";
+    lang.builtins = "array count strlen isset empty var_dump print_r json_encode json_decode explode implode str_replace substr strpos sprintf printf in_array array_map array_filter";
+    lang.specials = "this self parent";
+    lang.decl_fn = "function fn";
+    lang.decl_type = "class interface trait enum namespace";
+    lang.sigil = "$";
+    lang.comment_leader = "// ";
+    lang.has_heredoc = true;
+    lang.line_comment("//");
+    lang.line_comment("#");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    lang.string("`", "`", "\\", "");
+    return lang.build();
+}

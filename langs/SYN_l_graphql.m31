@@ -1,0 +1,18 @@
+// GraphQL.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("graphql");
+    lang.keywords = "query mutation subscription fragment on type interface union enum input scalar schema extend implements directive repeatable";
+    lang.types = "Int Float String Boolean ID";
+    lang.constants = "true false null";
+    lang.decl_type = "type interface enum input union scalar";
+    lang.attr = "@";
+    lang.sigil = "$";
+    lang.comment_leader = "# ";
+    lang.line_comment("#");
+    lang.string("\"\"\"", "\"\"\"", "\\", "m");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

@@ -1,0 +1,20 @@
+// c.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("c");
+    lang.keywords = "if else for while do switch case default break continue return goto sizeof typedef static extern const volatile inline register auto restrict _Atomic _Alignas _Alignof _Noreturn _Static_assert _Thread_local";
+    lang.types = "int char short long float double void unsigned signed bool size_t ssize_t ptrdiff_t intptr_t uintptr_t uint8_t uint16_t uint32_t uint64_t int8_t int16_t int32_t int64_t FILE wchar_t off_t time_t _Bool _Complex va_list";
+    lang.constants = "NULL true false EOF";
+    lang.decl_type = "struct union enum";
+    lang.preproc = "#";
+    lang.comment_leader = "// ";
+    lang.symbol_style = "c";
+    lang.has_include_angle = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}

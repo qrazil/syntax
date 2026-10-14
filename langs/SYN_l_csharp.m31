@@ -1,0 +1,24 @@
+// C#.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("csharp");
+    lang.keywords = "abstract as base break case catch checked class const continue default delegate do else enum event explicit extern finally fixed for foreach goto if implicit in interface internal is lock namespace new operator out override params private protected public readonly ref return sealed sizeof stackalloc static struct switch this throw try typeof unchecked unsafe using virtual volatile while add alias async await dynamic from get global group into join let nameof orderby partial record remove select set unmanaged value var when where with yield init required file scoped";
+    lang.types = "bool byte sbyte char decimal double float int uint long ulong short ushort object string void nint nuint String Object List Dictionary HashSet IEnumerable Task Action Func Exception Console";
+    lang.constants = "true false null";
+    lang.specials = "this base";
+    lang.decl_type = "class struct interface enum record namespace";
+    lang.preproc = "#";
+    lang.comment_leader = "// ";
+    lang.symbol_style = "c";
+    lang.symbol_depth = 2;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"\"\"", "\"\"\"", "", "m");
+    lang.string("@\"", "\"", "doubled", "m");
+    lang.string("$\"", "\"", "\\", "i");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}
