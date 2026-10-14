@@ -309,13 +309,13 @@ int regex_end(str line, int start) {
         bool is_operand = is_alnum(previous) || previous == 41 || previous == 93 || previous == 39 || previous == 34 || previous == 96;
         if (is_operand) {
             // a keyword before it still allows a regex
-            int start = before;
-            while (start > 0 && is_alnum(line.byte_at(start - 1))) {
-                start = start - 1;
+            int word_start = before;
+            while (word_start > 0 && is_alnum(line.byte_at(word_start - 1))) {
+                word_start = word_start - 1;
             }
             bool is_keyword = false;
             for (str word in REGEX_AFTER) {
-                if (before - start + 1 == word.size() && is_match_at(line, start, word)) {
+                if (before - word_start + 1 == word.size() && is_match_at(line, word_start, word)) {
                     is_keyword = true;
                 }
             }
