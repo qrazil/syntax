@@ -7,7 +7,7 @@ RC_DEBUG, one core). Numbers from the machine this was developed on
 
 | what | time |
 |---|---|
-| cold: states of all 100 000 lines | ~55 ms |
+| cold: states of all 100 000 lines | ~75 ms |
 | a 60-line viewport, warm (states cached) | < 1 ms |
 | edit at line 1 that opens a `/*` (walk until it closes, 11 lines) | < 1 ms |
 | edit in the middle of 100 000 lines | < 1 ms |
