@@ -1,0 +1,19 @@
+// Scheme / Lisp.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("scheme");
+    lang.keywords = "define lambda let let* letrec if cond else case and or not begin set! quote quasiquote unquote do delay define-syntax let-syntax syntax-rules defun defmacro defvar defparameter setq progn when unless loop dolist dotimes funcall apply require provide module struct";
+    lang.constants = "#t #f nil t";
+    lang.decl_fn = "define defun defmacro";
+    lang.decl_type = "define-struct struct";
+    lang.word_body = "-?!*+<>=/.:#'";
+    lang.comment_leader = ";; ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment(";");
+    lang.block_comment("#|", "|#", "n");
+    lang.string("\"", "\"", "\\", "m");
+    return lang.build();
+}

@@ -72,6 +72,18 @@ the detection keys in `core/SYN_tables.m31`; `#!` interpreters and modelines
 | `asm` | Assembly | .s .asm .nasm .masm .inc |  |
 | `gomod` | go.mod | .gomod | go.mod go.work go.sum |
 | `nginx` | nginx | .nginx | nginx.conf |
+| `verilog` | Verilog / SystemVerilog | .v .sv .svh .vh |  |
+| `vhdl` | VHDL | .vhd .vhdl |  |
+| `objc` | Objective-C | .m .mm |  |
+| `matlab` | MATLAB / Octave | .mat .oct |  |
+| `fortran` | Fortran | .f .f90 .f95 .f03 .f08 .for .ftn |  |
+| `pascal` | Pascal | .pas .pp .lpr .dpr |  |
+| `scheme` | Scheme / Lisp | .scm .ss .sld .rkt .lisp .lsp .el .cl .fnl | .emacs |
+| `tcl` | Tcl | .tcl .tk |  |
+| `crystal` | Crystal | .cr |  |
+| `solidity` | Solidity | .sol |  |
+| `d` | D | .d .di |  |
+| `glsl` | GLSL / HLSL | .glsl .vert .frag .geom .comp .tesc .tese .hlsl .fx .wgsl |  |
 
 `plain` (no classes) is the answer for anything unknown. `tsx` is
 `typescript`, `jsx` is `javascript`, `gradle` is `groovy`, `terraform` is
@@ -90,8 +102,9 @@ the oracle machine.
 
 ## What is not there
 
-Done as listed above; missing from the original list of about fifty are:
-verilog/vhdl (optional in the brief), and anything not in the table. Shell
+Everything in the original list is there (verilog and vhdl came in 0.4.0).
+Not in the table: ada, cobol, prolog, smalltalk, wasm text, kconfig, gettext
+`.po`, and anything else. Shell
 heredocs are tracked for `sh`, `php`, `ruby`, `perl` and `hcl`; Ruby's `%w()`
 literals, Perl's `qw()`/regex quoting, Lisp reader macros, Haskell's layout and
 Lua's `[[ ]]` inside other languages are not.

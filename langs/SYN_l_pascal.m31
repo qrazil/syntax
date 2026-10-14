@@ -1,0 +1,20 @@
+// Pascal.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("pascal");
+    lang.keywords = "program unit uses interface implementation begin end procedure function var const type record array of if then else for to downto do while repeat until case with try except finally raise class object private public protected published constructor destructor inherited and or not xor div mod shl shr in is as nil label goto packed set";
+    lang.types = "integer real boolean char string byte word longint shortint cardinal int64 double single extended pointer text file";
+    lang.constants = "true false nil";
+    lang.decl_fn = "procedure function constructor destructor";
+    lang.decl_type = "program unit class record";
+    lang.comment_leader = "// ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.line_comment("//");
+    lang.block_comment("{", "}", "");
+    lang.block_comment("(*", "*)", "");
+    lang.string("'", "'", "doubled", "");
+    return lang.build();
+}

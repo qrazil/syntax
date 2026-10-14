@@ -1,0 +1,21 @@
+// D.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("d");
+    lang.keywords = "abstract alias align asm assert auto body bool break case cast catch class const continue debug default delegate delete deprecated do else enum export extern final finally for foreach foreach_reverse function goto if immutable import in inout interface invariant is lazy macro mixin module new nothrow null out override package pragma private protected public pure ref return scope shared static struct super switch synchronized template this throw try typeid typeof union unittest version volatile while with";
+    lang.types = "void bool byte ubyte short ushort int uint long ulong float double real char wchar dchar string size_t ptrdiff_t";
+    lang.constants = "true false null";
+    lang.specials = "this super";
+    lang.decl_type = "class struct interface enum union template";
+    lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.block_comment("/+", "+/", "n");
+    lang.string("`", "`", "", "m");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    return lang.build();
+}

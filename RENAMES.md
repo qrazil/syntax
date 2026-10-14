@@ -3,6 +3,13 @@
 Renames, moves and removed names, newest first. A release that changes a name
 or a module path adds an entry here.
 
+## 0.4.0
+
+No name or module changed. Twelve languages added: verilog (and
+systemverilog), vhdl, objc, matlab (and octave), fortran, pascal, scheme (and
+lisp, racket, elisp), tcl, crystal, solidity, d, glsl (and hlsl, wgsl).
+`.m` is objc, `.v` verilog, `.d` d.
+
 ## 0.3.0
 
 No name or module changed. Added and changed behaviour, again from the oracle:

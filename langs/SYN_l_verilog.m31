@@ -1,0 +1,18 @@
+// Verilog / SystemVerilog.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("verilog");
+    lang.keywords = "module endmodule macromodule input output inout wire reg logic bit byte int integer real time always always_comb always_ff always_latch assign begin end if else case casex casez endcase default for foreach while repeat forever posedge negedge or and not parameter localparam function endfunction task endtask initial generate endgenerate genvar fork join disable force release wait class endclass interface endinterface package endpackage import export typedef enum struct union modport clocking endclocking property endproperty sequence endsequence assert assume cover return break continue new this super virtual static automatic extern local protected rand randc constraint";
+    lang.types = "wire reg logic bit byte shortint int longint integer time real string signed unsigned";
+    lang.decl_fn = "function task";
+    lang.decl_type = "module class interface package";
+    lang.preproc = "`";
+    lang.comment_leader = "// ";
+    lang.has_caps = false;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

@@ -8,7 +8,7 @@ and an outline. No parser, no terminal: the result is a class per byte.
 
 It replaces the two drifting copies in the editor (`MED_syntax`) and `tui`
 (`TUI_syntax`), keeps their API ideas, and grows the language list to
-about sixty.
+about eighty.
 
 ## Use
 

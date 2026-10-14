@@ -1,0 +1,20 @@
+// MATLAB / Octave.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("matlab");
+    lang.keywords = "function end if elseif else for while switch case otherwise break continue return try catch parfor global persistent classdef properties methods events enumeration";
+    lang.constants = "true false pi Inf NaN eps";
+    lang.builtins = "disp fprintf printf zeros ones eye size length numel rand randn sum prod max min abs sqrt exp log sin cos plot figure error warning isempty any all find";
+    lang.decl_fn = "function";
+    lang.decl_type = "classdef";
+    lang.comment_leader = "% ";
+    lang.has_caps = false;
+    lang.line_comment("%");
+    lang.line_comment("#");
+    lang.block_comment("%{", "%}", "");
+    lang.string("'", "'", "doubled", "");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

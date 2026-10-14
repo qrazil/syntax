@@ -1,0 +1,16 @@
+// Tcl.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("tcl");
+    lang.keywords = "proc set if else elseif for foreach while switch return break continue catch try finally error namespace eval upvar global variable puts expr incr append lappend string list dict array";
+    lang.decl_fn = "proc";
+    lang.sigil = "$";
+    lang.comment_leader = "# ";
+    lang.has_caps = false;
+    lang.has_calls = false;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

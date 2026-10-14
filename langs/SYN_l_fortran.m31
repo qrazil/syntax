@@ -1,0 +1,19 @@
+// Fortran.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("fortran");
+    lang.keywords = "program end subroutine function module use implicit none contains if then else elseif endif do enddo while select case default endselect call return stop cycle exit allocate deallocate intent in out inout parameter dimension allocatable pointer target public private interface type endtype where endwhere forall";
+    lang.types = "integer real double precision complex logical character";
+    lang.constants = ".true. .false.";
+    lang.decl_fn = "subroutine function";
+    lang.decl_type = "program module type";
+    lang.comment_leader = "! ";
+    lang.is_case_folded = true;
+    lang.has_caps = false;
+    lang.line_comment("!");
+    lang.string("'", "'", "doubled", "");
+    lang.string("\"", "\"", "doubled", "");
+    return lang.build();
+}

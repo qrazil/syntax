@@ -71,4 +71,16 @@ check.snap("asm", [".globl main", "main: mov $0, %eax # c", "  ret"], ["llllll",
 check.snap("jsonc", ["{ // c", "  \"a\": 1, /* b */ \"c\": [true, null]", "}"], ["  cccc", "  yyy  0  ccccccc yyy   oooo  oooo", ""]);
 check.snap("gomod", ["module example.com/m // c", "go 1.21", "require a.b/c v1.2.3"], ["kkkkkk               cccc", "kk 0000", "kkkkkkk          000"]);
 check.snap("nginx", ["server { listen 80; # c", "  server_name \"a\"; }"], ["                00  ccc", "              sss"]);
+check.snap("verilog", ["`timescale 1ns/1ps", "module top(input wire clk, output reg [3:0] q); // c", "  always @(posedge clk) begin q <= q + 1; end", "endmodule"], ["pppppppppp 000 000", "kkkkkk ttt kkkkk kkkk      kkkkkk kkk  0 0      cccc", "  kkkkkk   kkkkkkk      kkkkk          0  kkk", "kkkkkkkkk"]);
+check.snap("vhdl", ["library ieee;", "entity foo is port (a : in std_logic; b : out std_logic_vector(3 downto 0)); -- c", "end entity;"], ["kkkkkkk", "kkkkkk ttt kk kkkk      kk ttttttttt      kkk tttttttttttttttt 0 kkkkkk 0    cccc", "kkk kkkkkk"]);
+check.snap("objc", ["#import <Foundation/Foundation.h>", "@interface Foo : NSObject", "- (void)run:(NSString *)s { NSLog(@\"hi %@\", s); } // c", "@end"], ["ppppppp sssssssssssssssssssssssss", "aaaaaaaaaa ttt   tttttttt", "   tttt      tttttttt       lllll ssssssss        cccc", "aaaa"]);
+check.snap("matlab", ["function y = f(x) % c", "  y = x .^ 2 + 1;", "end", "s = 'it''s'; z = \"str\";"], ["kkkkkkkk f   l    ccc", "           0   0", "kkk", "    sssssss      sssss"]);
+check.snap("fortran", ["program hello", "  integer :: i ! c", "  print *, 'hi', i", "end program"], ["kkkkkkk ttttt", "  ttttttt      ccc", "           ssss", "kkk kkkkkkk"]);
+check.snap("pascal", ["program Hello;", "var n: integer; { c }", "begin writeln('hi'); n := 1; end."], ["kkkkkkk ttttt", "kkk    ttttttt  ccccc", "kkkkk lllllll ssss        0  kkk"]);
+check.snap("scheme", ["(define (fact n) (if (= n 0) 1 (* n (fact (- n 1))))) ; c", "#| block |#", "(display \"hi\")"], [" kkkkkk           kk      0  0                 0      ccc", "ccccccccccc", "         ssss"]);
+check.snap("tcl", ["proc run {x} { set y [expr {$x + 1}]; puts \"y=$y\" } # c"], ["kkkk fff       kkk    kkkk       0    kkkk ssssss   ccc"]);
+check.snap("crystal", ["class Foo", "  def run(x : Int32) : Int32 # c", "    x + 1", "  end", "end"], ["kkkkk ttt", "  kkk fff     ttttt    ttttt ccc", "        0", "  kkk", "kkk"]);
+check.snap("solidity", ["pragma solidity ^0.8.0;", "contract Foo { uint256 public x; function run() external view returns (uint256) { return x; } } // c"], ["kkkkkk           00000", "kkkkkkkk ttt   ttttttt kkkkkk    kkkkkkkk fff   kkkkkkkk kkkk kkkkkkk  ttttttt    kkkkkk        cccc"]);
+check.snap("d", ["import std.stdio;", "void main() { writeln(\"hi\"); } // c"], ["kkkkkk", "tttt llll     lllllll ssss     cccc"]);
+check.snap("glsl", ["#version 330", "uniform mat4 mvp; in vec3 pos; // c", "void main() { gl_Position = mvp * vec4(pos, 1.0); }"], ["pppppppp 000", "kkkkkkk tttt      kk tttt      cccc", "tttt llll                         tttt      000"]);
 check.finish();

@@ -1,0 +1,19 @@
+// GLSL / HLSL.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("glsl");
+    lang.keywords = "if else for while do switch case default break continue return discard struct const uniform in out inout layout attribute varying precision highp mediump lowp flat smooth centroid sampler2D samplerCube";
+    lang.types = "void bool int uint float double vec2 vec3 vec4 ivec2 ivec3 ivec4 uvec2 uvec3 uvec4 bvec2 bvec3 bvec4 mat2 mat3 mat4 sampler2D sampler3D samplerCube float2 float3 float4 float4x4 half";
+    lang.constants = "true false";
+    lang.builtins = "texture mix clamp dot cross normalize length pow abs min max sin cos tan sqrt step smoothstep reflect refract fract floor ceil mod";
+    lang.decl_type = "struct";
+    lang.preproc = "#";
+    lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    return lang.build();
+}

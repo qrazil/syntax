@@ -336,3 +336,53 @@ require a.b/c v1.2.3
 %% nginx
 server { listen 80; # c
   server_name "a"; }
+%% verilog
+`timescale 1ns/1ps
+module top(input wire clk, output reg [3:0] q); // c
+  always @(posedge clk) begin q <= q + 1; end
+endmodule
+%% vhdl
+library ieee;
+entity foo is port (a : in std_logic; b : out std_logic_vector(3 downto 0)); -- c
+end entity;
+%% objc
+#import <Foundation/Foundation.h>
+@interface Foo : NSObject
+- (void)run:(NSString *)s { NSLog(@"hi %@", s); } // c
+@end
+%% matlab
+function y = f(x) % c
+  y = x .^ 2 + 1;
+end
+s = 'it''s'; z = "str";
+%% fortran
+program hello
+  integer :: i ! c
+  print *, 'hi', i
+end program
+%% pascal
+program Hello;
+var n: integer; { c }
+begin writeln('hi'); n := 1; end.
+%% scheme
+(define (fact n) (if (= n 0) 1 (* n (fact (- n 1))))) ; c
+#| block |#
+(display "hi")
+%% tcl
+proc run {x} { set y [expr {$x + 1}]; puts "y=$y" } # c
+%% crystal
+class Foo
+  def run(x : Int32) : Int32 # c
+    x + 1
+  end
+end
+%% solidity
+pragma solidity ^0.8.0;
+contract Foo { uint256 public x; function run() external view returns (uint256) { return x; } } // c
+%% d
+import std.stdio;
+void main() { writeln("hi"); } // c
+%% glsl
+#version 330
+uniform mat4 mvp; in vec3 pos; // c
+void main() { gl_Position = mvp * vec4(pos, 1.0); }

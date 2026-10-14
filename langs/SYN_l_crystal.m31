@@ -1,0 +1,22 @@
+// Crystal.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("crystal");
+    lang.keywords = "abstract alias annotation as as? asm begin break case class def do else elsif end ensure enum extend for fun if in include instance_sizeof is_a? lib macro module next nil? of out pointerof private protected require rescue responds_to? return select self sizeof struct super then type typeof uninitialized union unless until when while with yield";
+    lang.types = "Int8 Int16 Int32 Int64 UInt8 UInt16 UInt32 UInt64 Float32 Float64 Bool Char String Symbol Array Hash Nil Proc Range Regex Tuple";
+    lang.constants = "true false nil";
+    lang.specials = "self";
+    lang.decl_fn = "def";
+    lang.decl_type = "class module struct enum lib macro";
+    lang.word_body = "?!";
+    lang.attr = "@";
+    lang.comment_leader = "# ";
+    lang.has_members = true;
+    lang.line_comment("#");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "c");
+    lang.string("`", "`", "\\", "");
+    return lang.build();
+}

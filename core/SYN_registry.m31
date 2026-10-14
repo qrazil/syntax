@@ -10,19 +10,23 @@ import langs.SYN_l_c;
 import langs.SYN_l_clojure;
 import langs.SYN_l_cmake;
 import langs.SYN_l_cpp;
+import langs.SYN_l_crystal;
 import langs.SYN_l_csharp;
 import langs.SYN_l_css;
 import langs.SYN_l_csv;
+import langs.SYN_l_d;
 import langs.SYN_l_dart;
 import langs.SYN_l_diff;
 import langs.SYN_l_dockerfile;
 import langs.SYN_l_elixir;
 import langs.SYN_l_erlang;
 import langs.SYN_l_fish;
+import langs.SYN_l_fortran;
 import langs.SYN_l_fsharp;
 import langs.SYN_l_gitcommit;
 import langs.SYN_l_gitignore;
 import langs.SYN_l_gitrebase;
+import langs.SYN_l_glsl;
 import langs.SYN_l_go;
 import langs.SYN_l_gomod;
 import langs.SYN_l_graphql;
@@ -43,10 +47,13 @@ import langs.SYN_l_lua;
 import langs.SYN_l_m31;
 import langs.SYN_l_makefile;
 import langs.SYN_l_markdown;
+import langs.SYN_l_matlab;
 import langs.SYN_l_nginx;
 import langs.SYN_l_nim;
 import langs.SYN_l_nix;
+import langs.SYN_l_objc;
 import langs.SYN_l_ocaml;
+import langs.SYN_l_pascal;
 import langs.SYN_l_perl;
 import langs.SYN_l_php;
 import langs.SYN_l_plain;
@@ -57,13 +64,18 @@ import langs.SYN_l_r;
 import langs.SYN_l_ruby;
 import langs.SYN_l_rust;
 import langs.SYN_l_scala;
+import langs.SYN_l_scheme;
 import langs.SYN_l_scss;
 import langs.SYN_l_sh;
+import langs.SYN_l_solidity;
 import langs.SYN_l_sql;
 import langs.SYN_l_svelte;
 import langs.SYN_l_swift;
+import langs.SYN_l_tcl;
 import langs.SYN_l_toml;
 import langs.SYN_l_typescript;
+import langs.SYN_l_verilog;
+import langs.SYN_l_vhdl;
 import langs.SYN_l_vim;
 import langs.SYN_l_vue;
 import langs.SYN_l_xml;
@@ -72,7 +84,7 @@ import langs.SYN_l_zig;
 
 /// Every language name, in id order (an id is the 1-based position).
 pub List<str> names() {
-    return ["c", "cpp", "go", "javascript", "typescript", "json", "jsonc", "m31", "python", "rust", "sh", "toml", "yaml", "markdown", "java", "csharp", "kotlin", "swift", "php", "ruby", "lua", "perl", "r", "dart", "scala", "groovy", "haskell", "elixir", "erlang", "clojure", "ocaml", "fsharp", "zig", "nim", "julia", "sql", "css", "scss", "less", "dockerfile", "makefile", "cmake", "nix", "powershell", "bat", "fish", "vim", "awk", "hcl", "protobuf", "graphql", "html", "xml", "vue", "svelte", "diff", "gitcommit", "gitrebase", "gitignore", "ini", "csv", "latex", "asm", "gomod", "nginx"];
+    return ["c", "cpp", "go", "javascript", "typescript", "json", "jsonc", "m31", "python", "rust", "sh", "toml", "yaml", "markdown", "java", "csharp", "kotlin", "swift", "php", "ruby", "lua", "perl", "r", "dart", "scala", "groovy", "haskell", "elixir", "erlang", "clojure", "ocaml", "fsharp", "zig", "nim", "julia", "sql", "css", "scss", "less", "dockerfile", "makefile", "cmake", "nix", "powershell", "bat", "fish", "vim", "awk", "hcl", "protobuf", "graphql", "html", "xml", "vue", "svelte", "diff", "gitcommit", "gitrebase", "gitignore", "ini", "csv", "latex", "asm", "gomod", "nginx", "verilog", "vhdl", "objc", "matlab", "fortran", "pascal", "scheme", "tcl", "crystal", "solidity", "d", "glsl"];
 }
 
 /// The 1-based id of a language name, 0 when unknown.
@@ -292,6 +304,42 @@ pub SYN_lang.Lang load(str name) {
     }
     if (name == "nginx") {
         return SYN_l_nginx.define();
+    }
+    if (name == "verilog") {
+        return SYN_l_verilog.define();
+    }
+    if (name == "vhdl") {
+        return SYN_l_vhdl.define();
+    }
+    if (name == "objc") {
+        return SYN_l_objc.define();
+    }
+    if (name == "matlab") {
+        return SYN_l_matlab.define();
+    }
+    if (name == "fortran") {
+        return SYN_l_fortran.define();
+    }
+    if (name == "pascal") {
+        return SYN_l_pascal.define();
+    }
+    if (name == "scheme") {
+        return SYN_l_scheme.define();
+    }
+    if (name == "tcl") {
+        return SYN_l_tcl.define();
+    }
+    if (name == "crystal") {
+        return SYN_l_crystal.define();
+    }
+    if (name == "solidity") {
+        return SYN_l_solidity.define();
+    }
+    if (name == "d") {
+        return SYN_l_d.define();
+    }
+    if (name == "glsl") {
+        return SYN_l_glsl.define();
     }
     return SYN_l_plain.define();
 }

@@ -1,0 +1,20 @@
+// Solidity.
+
+import core.SYN_lang;
+
+pub SYN_lang.Lang define() {
+    SYN_lang.Lang lang = SYN_lang.Lang("solidity");
+    lang.keywords = "pragma import contract interface library abstract is using for function modifier event emit error struct enum mapping constructor fallback receive returns return if else while do for break continue try catch revert require assert public private internal external view pure payable virtual override memory storage calldata indexed constant immutable anonymous assembly";
+    lang.types = "uint uint8 uint16 uint32 uint64 uint128 uint256 int int8 int16 int32 int64 int128 int256 address bool string bytes bytes1 bytes32 byte";
+    lang.constants = "true false";
+    lang.specials = "this super msg block tx";
+    lang.decl_fn = "function modifier event";
+    lang.decl_type = "contract interface library struct enum error";
+    lang.comment_leader = "// ";
+    lang.has_members = true;
+    lang.line_comment("//");
+    lang.block_comment("/*", "*/", "");
+    lang.string("\"", "\"", "\\", "");
+    lang.string("'", "'", "\\", "");
+    return lang.build();
+}
