@@ -120,6 +120,34 @@ pub str comment_leader(str language) {
     return SYN_registry.load(language).comment_leader;
 }
 
+/// How a language writes comments, for toggling: [leader, open, close].
+/// `leader` is the line comment ("// ", "" when there is none); `open` and
+/// `close` the first block comment form ("/*", "*/"), "" when there is none.
+/// A language with only block comments (CSS, HTML, OCaml) has an empty leader
+/// and wraps the line in `open ... close`.
+pub List<str> comment_forms(str language) {
+    List<str> out = ["", "", ""];
+    if (language == "") {
+        return out;
+    }
+    SYN_lang.Lang lang = SYN_registry.load(language);
+    out[0] = lang.comment_leader;
+    if (lang.mode == "markup" || lang.mode == "markdown") {
+        out[0] = "";
+        out[1] = "<!--";
+        out[2] = "-->";
+        return out;
+    }
+    if (lang.block_comments.size() >= 3 && !lang.block_comments[2].contains("L")) {
+        out[1] = lang.block_comments[0];
+        out[2] = lang.block_comments[1];
+    }
+    if (out[0] == "" && lang.line_comments.size() > 0) {
+        out[0] = lang.line_comments[0] + " ";
+    }
+    return out;
+}
+
 /// Is `text` (ignoring indentation) a line comment with this leader?
 pub bool is_commented(str leader, str text) {
     if (leader == "") {

@@ -48,7 +48,7 @@ onto the twelve classes the editor and tui always had.
 | `SYN_detect` | `language_of(path, first_line)`, `alias_of(tag)` (fence names, `:set syntax=`) |
 | `SYN_highlight` | `Highlighter` (`set_lines`, `add`, `classes`, `spans`, `state_at`, `update`), `classify(lang, line, state)` for one-off lines |
 | `SYN_class` | classes `NORMAL .. MEMBER`, `name_of`, `from_capture`, `legacy`, `palette` |
-| `SYN_structure` | `match_bracket`, `comment_leader`, `comment_line`/`uncomment_line`/`is_commented`, `is_block_opener`/`is_block_closer`/`indent_delta`, `symbols` |
+| `SYN_structure` | `match_bracket`, `comment_leader`, `comment_forms`, `comment_line`/`uncomment_line`/`is_commented`, `is_block_opener`/`is_block_closer`/`indent_delta`, `symbols` |
 | `SYN_registry` | `names()`, `id_of`, `name_of`, `load(name)` |
 | `SYN_engine`, `SYN_scanner` | the line engine and its reusable token buffer, for callers that manage their own lines |
 

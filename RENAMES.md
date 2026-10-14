@@ -3,6 +3,11 @@
 Renames, moves and removed names, newest first. A release that changes a name
 or a module path adds an entry here.
 
+## 0.4.1
+
+Added `SYN_structure.comment_forms(language)`: [line leader, block open,
+block close], so a toggle can wrap CSS, HTML and OCaml lines.
+
 ## 0.4.0
 
 No name or module changed. Twelve languages added: verilog (and
