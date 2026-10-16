@@ -1,24 +1,31 @@
 // Print sample lines with the class mask the highlighter gives them, to
 // review and freeze as test expectations (tests/tools/snapgen.py).
 //
-//   show SAMPLES        SAMPLES: blocks that start with `%% LANGUAGE`
+//   show SAMPLES        SAMPLES: blocks that start with `%% LANGUAGE`   (-h, --help)
 //
 // Output per block: `%% LANGUAGE`, then for each line the source and the
 // mask (letters as in tests/SYN_check.m31) ended by `|`.
 
+import args;
 import io;
 import os;
 import core.SYN_highlight;
 import tests.SYN_check;
 
-List<str> argv = os.arguments();
+// The command line, in Oro's args grammar (m31's docs/cli-conventions.md).
+args.Parser table = args.Parser("show", summary: "print sample lines with the class mask the highlighter gives them");
+table.positional("samples", placeholder: "SAMPLES", help: "a file of blocks that start with `%% LANGUAGE`");
+table.epilog = "exit status: 0 ok, 1 the file cannot be read, 2 usage error";
+args.Parsed given = table.parse_or_exit(os.arguments().slice(1, os.arguments().size()));
+str samples = given.positional("samples");
 str text = "";
-match (io.read(argv[1])) {
+match (io.read(samples)) {
     case Ok(str body_text): {
         text = body_text;
     }
-    case Err(_): {
-        print("cannot read " + argv[1]);
+    case Err(io.Error failure): {
+        io.eprint("show: " + samples + ": " + failure.to_str());
+        os.exit(1);
     }
 }
 List<List<str>> blocks = [];

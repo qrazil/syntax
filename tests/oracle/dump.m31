@@ -7,17 +7,26 @@
 // token (line and byte columns 0-based, END exclusive; classes are tree-sitter
 // capture names, NORMAL bytes omitted), or `!! reason` when unreadable.
 
+import args;
 import io;
 import os;
 import core.SYN_class;
 import core.SYN_detect;
 import core.SYN_highlight;
 
-List<str> argv = os.arguments();
-int next = 1;
-while (next + 1 < argv.size()) {
-    str lang = argv[next];
-    str path = argv[next + 1];
+// The command line, in Oro's args grammar (m31's docs/cli-conventions.md).
+args.Parser table = args.Parser("dump", summary: "dump the tokens this library produces for files, for the oracle comparison");
+table.tail("pairs", placeholder: "LANG PATH", help: "pairs of a language and a file; LANG - detects the language from the path");
+table.epilog = "exit status: 0 ok (an unreadable file is a `!!` line in the output), 2 usage error";
+args.Parsed given = table.parse_or_exit(os.arguments().slice(1, os.arguments().size()));
+List<str> pairs = given.tail("pairs");
+if (pairs.size() % 2 != 0) {
+    table.fail("'" + pairs[pairs.size() - 1] + "' has no file: arguments come as LANG PATH pairs");
+}
+int next = 0;
+while (next + 1 < pairs.size()) {
+    str lang = pairs[next];
+    str path = pairs[next + 1];
     next = next + 2;
     match (io.read(path)) {
         case Ok(str text): {

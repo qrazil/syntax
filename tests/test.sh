@@ -107,6 +107,19 @@ else
     echo "oracle skipped: no python3"
 fi
 
+# --- the developer tools' command lines -----------------------------------------
+
+bash tests/test_cli.sh >"$WORK/cli.out" 2>&1
+cli_rc=$?
+cat "$WORK/cli.out"
+cli_line=$(grep ' passed, ' "$WORK/cli.out" | tail -n 1)
+pass=$((pass + $(printf '%s' "$cli_line" | awk '{print $1+0}')))
+cli_fail=$(printf '%s' "$cli_line" | awk '{print $3+0}')
+fail=$((fail + cli_fail))
+if [ "$cli_rc" != 0 ] && [ "$cli_fail" = 0 ]; then
+    bad "tool command lines: exit $cli_rc, no summary line"
+fi
+
 if [ "${1:-}" = "--bench" ]; then
     if build bench tests/bench.m31; then "$WORK/bench"; fi
 fi
