@@ -1,8 +1,8 @@
-// Highlighter timings. Not a pass/fail test (a time is not a fixture): it
-// prints what a cold highlight of a large file, an edit near its top and an
-// edit in its middle cost, for docs/PERF.md.
-//
-//   LANGC=... M31_ROOT=... bash tests/test.sh --bench
+/* Highlighter timings. Not a pass/fail test (a time is not a fixture): it
+ * prints what a cold highlight of a large file, an edit near its top and an
+ * edit in its middle cost, for docs/PERF.md.
+ *
+ *   LANGC=... M31_ROOT=... bash tests/test.sh --bench */
 
 import date;
 import core.SYN_highlight;

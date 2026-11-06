@@ -1,6 +1,6 @@
-// The language registry: names, ids and loading. Generated once and then
-// edited by hand: a language is one file in langs/ and one line in each
-// of `names`, `load` below and the tables in SYN_tables.
+/* The language registry: names, ids and loading. Generated once and then
+ * edited by hand: a language is one file in langs/ and one line in each
+ * of `names`, `load` below and the tables in SYN_tables. */
 
 import core.SYN_lang;
 import langs.SYN_l_asm;

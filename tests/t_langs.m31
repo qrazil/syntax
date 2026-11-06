@@ -1,6 +1,6 @@
-// Per-language snapshots: a few lines of real-looking code per language,
-// with the class of every byte drawn under it (letters: tests/SYN_check.m31).
-// Add a language by adding a block here, reviewed with tests/tools/show.m31.
+/* Per-language snapshots: a few lines of real-looking code per language,
+ * with the class of every byte drawn under it (letters: tests/SYN_check.m31).
+ * Add a language by adding a block here, reviewed with tests/tools/show.m31. */
 
 import tests.SYN_check;
 

@@ -1,5 +1,5 @@
-// Line-oriented formats: diffs, git commit messages and rebase todo lists,
-// and YAML block scalars (a `|` or `>` whose indented body is text).
+/* Line-oriented formats: diffs, git commit messages and rebase todo lists,
+ * and YAML block scalars (a `|` or `>` whose indented body is text). */
 
 import core.SYN_class;
 import core.SYN_code;
@@ -32,11 +32,11 @@ int word_end(str line, int from) {
     return position;
 }
 
-/// A unified (or context) diff, one line at a time, as tree-sitter's diff
-/// highlights it: `diff` is a function and its paths special, `index` a
-/// keyword with constant hashes, `---`/`+++` lines deletions and additions
-/// with a special path, hunk headers attributes, and +/- lines added /
-/// removed after their marker. State 1: inside a hunk.
+/** A unified (or context) diff, one line at a time, as tree-sitter's diff
+ * highlights it: `diff` is a function and its paths special, `index` a
+ * keyword with constant hashes, `---`/`+++` lines deletions and additions
+ * with a special path, hunk headers attributes, and +/- lines added /
+ * removed after their marker. State 1: inside a hunk. */
 pub void scan_diff(SYN_scanner.Scanner scanner, str line, int state) {
     int size = line.size();
     scanner.state = state & 15;
@@ -106,8 +106,8 @@ pub void scan_diff(SYN_scanner.Scanner scanner, str line, int state) {
     }
 }
 
-/// A git commit message: `#` comment lines, `Key: value` trailers, and a
-/// subject on the first line.
+/** A git commit message: `#` comment lines, `Key: value` trailers, and a
+ * subject on the first line. */
 pub void scan_gitcommit(SYN_scanner.Scanner scanner, str line, int state) {
     int size = line.size();
     scanner.state = 1;
@@ -175,8 +175,8 @@ bool is_digit(int byte) {
     return byte >= 48 && byte <= 57;
 }
 
-// the class of a plain scalar's text [from, upto): number, boolean / null,
-// or a string
+/* the class of a plain scalar's text [from, upto): number, boolean / null,
+ * or a string */
 int yaml_scalar_class(str line, int from, int upto) {
     int length = upto - from;
     if (length == 0) {
@@ -227,8 +227,8 @@ int yaml_scalar_class(str line, int from, int upto) {
     return SYN_class.STRING;
 }
 
-// a quoted scalar starting at `from`: the position after its closing quote
-// (the line end when it does not close here)
+/* a quoted scalar starting at `from`: the position after its closing quote
+ * (the line end when it does not close here) */
 int yaml_quoted_end(str line, int from) {
     int quote = line.byte_at(from);
     int index = from + 1;
@@ -262,8 +262,8 @@ bool is_yaml_colon_at(str line, int colon) {
     return next == 32 || next == 9 || next == 44 || next == 125 || next == 93;
 }
 
-// a flow collection or any value from `from`: classify scalars, strings and
-// keys until the end of the line or a comment
+/* a flow collection or any value from `from`: classify scalars, strings and
+ * keys until the end of the line or a comment */
 void yaml_value(SYN_scanner.Scanner scanner, str line, int from, bool is_flow) {
     int size = line.size();
     int cursor = from;
@@ -337,10 +337,10 @@ void yaml_value(SYN_scanner.Scanner scanner, str line, int from, bool is_flow) {
     }
 }
 
-/// YAML, one line at a time: keys, plain scalars (strings, numbers,
-/// booleans), quoted strings, flow collections, comments and block scalars.
-/// State 1 in a block scalar, with the indentation of the line that
-/// introduced it in bits 12...
+/** YAML, one line at a time: keys, plain scalars (strings, numbers,
+ * booleans), quoted strings, flow collections, comments and block scalars.
+ * State 1 in a block scalar, with the indentation of the line that
+ * introduced it in bits 12... */
 pub void scan_yaml(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
     scanner.state = 0;
@@ -469,9 +469,9 @@ bool is_shell_instruction(str word) {
     return upper == "RUN" || upper == "CMD" || upper == "ENTRYPOINT";
 }
 
-/// A Dockerfile: instructions, and the shell form of RUN / CMD / ENTRYPOINT
-/// (with its `\` continuations) handed to `sh`. State 1: inside such a
-/// continued command.
+/** A Dockerfile: instructions, and the shell form of RUN / CMD / ENTRYPOINT
+ * (with its `\` continuations) handed to `sh`. State 1: inside such a
+ * continued command. */
 pub void scan_dockerfile(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
     scanner.state = 0;
@@ -516,8 +516,8 @@ pub void scan_dockerfile(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str li
     SYN_code.scan(scanner, lang, line, 0);
 }
 
-/// INI / .conf / .properties: `[section]` titles, `key = value` pairs (the
-/// value is a string, as tree-sitter's ini has it), `;` and `#` comments.
+/** INI / .conf / .properties: `[section]` titles, `key = value` pairs (the
+ * value is a string, as tree-sitter's ini has it), `;` and `#` comments. */
 pub void scan_ini(SYN_scanner.Scanner scanner, str line) {
     int size = line.size();
     scanner.state = 0;
@@ -579,10 +579,10 @@ int vim_pattern_end(str line, int from) {
     return line.size();
 }
 
-/// A Vim script `syn[tax]` or `hi[ghlight]` line, as tree-sitter's vim reads
-/// it: the command and its sub-commands are keywords, the group names types,
-/// keyword lists and patterns strings, highlight attributes properties and
-/// their values constants. Other lines are left to the code scanner.
+/** A Vim script `syn[tax]` or `hi[ghlight]` line, as tree-sitter's vim reads
+ * it: the command and its sub-commands are keywords, the group names types,
+ * keyword lists and patterns strings, highlight attributes properties and
+ * their values constants. Other lines are left to the code scanner. */
 pub bool is_vim_command_scanned(SYN_scanner.Scanner scanner, str line) {
     int size = line.size();
     int position = indent_of(line);
@@ -656,8 +656,8 @@ bool is_alphabetic(int byte) {
     return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || byte == 95 || byte >= 128;
 }
 
-// Scan the rest of a line [from, size) with the code scanner and add its
-// spans, shifted, to the scanner's.
+/* Scan the rest of a line [from, size) with the code scanner and add its
+ * spans, shifted, to the scanner's. */
 void scan_rest(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int from) {
     if (from >= line.size()) {
         return;
@@ -675,9 +675,9 @@ void scan_rest(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int fr
     scanner.state = 0;
 }
 
-// the position of an assignment operator (`=`, `:=`, `::=`, `?=`, `+=`,
-// `!=`) in a makefile line, as (start of the operator << 8) | its length,
-// or -1; a `:` that starts a rule comes first
+/* the position of an assignment operator (`=`, `:=`, `::=`, `?=`, `+=`,
+ * `!=`) in a makefile line, as (start of the operator << 8) | its length,
+ * or -1; a `:` that starts a rule comes first */
 int make_assignment(str line, int from) {
     int index = from;
     while (index < line.size()) {
@@ -731,8 +731,8 @@ int make_assignment(str line, int from) {
     return -1;
 }
 
-/// A makefile: variables, rule targets, `#` comments, and recipe lines (a
-/// tab, then shell) handed to `sh`. State 1: a recipe line continued with `\`.
+/** A makefile: variables, rule targets, `#` comments, and recipe lines (a
+ * tab, then shell) handed to `sh`. State 1: a recipe line continued with `\`. */
 pub void scan_makefile(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
     scanner.state = 0;

@@ -14,8 +14,8 @@ check.eq_int("state after the comment", highlighter.state_at(4), 0);
 check.eq_int("comment bytes", highlighter.classes(2)[0], SYN_class.COMMENT);
 check.eq_int("code after the comment", highlighter.classes(3)[9], SYN_class.TYPE);
 check.eq_int("out of range", highlighter.classes(99).size(), 0);
-// an edit that opens a comment at the top: the walk runs to the line that
-// closes it, and tells the caller which lines to redraw
+/* an edit that opens a comment at the top: the walk runs to the line that
+ * closes it, and tells the caller which lines to redraw */
 lines[0] = "/* now";
 List<int> range = highlighter.update(0, lines);
 check.eq_int("first redrawn line", range[0], 0);

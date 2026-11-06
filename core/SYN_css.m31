@@ -1,13 +1,13 @@
-// CSS, SCSS and Less: selectors (tags, classes, ids, pseudo-classes and
-// attribute selectors), declarations (property names, numbers with their
-// units, colours, strings, functions, !important) and at-rules, with block
-// comments carried across lines.
-//
-// Own state
-//   bits 0..3   kind: 0 normal, 1 inside a block comment
-//   bits 4..7   context of the current statement: 0 not decided yet, 1 a
-//               selector, 2 a declaration's value, 3 an at-rule's prelude
-//   bits 8..11  block depth (saturating at 15)
+/* CSS, SCSS and Less: selectors (tags, classes, ids, pseudo-classes and
+ * attribute selectors), declarations (property names, numbers with their
+ * units, colours, strings, functions, !important) and at-rules, with block
+ * comments carried across lines.
+ *
+ * Own state
+ *   bits 0..3   kind: 0 normal, 1 inside a block comment
+ *   bits 4..7   context of the current statement: 0 not decided yet, 1 a
+ *               selector, 2 a declaration's value, 3 an at-rule's prelude
+ *   bits 8..11  block depth (saturating at 15) */
 
 import core.SYN_class;
 import core.SYN_lang;
@@ -41,8 +41,8 @@ int name_end(str line, int from) {
     return position;
 }
 
-// after `from`, which of `{`, `;`, `}` comes first on the line (123, 59,
-// 125), or 0 when none does; strings and parentheses are skipped
+/* after `from`, which of `{`, `;`, `}` comes first on the line (123, 59,
+ * 125), or 0 when none does; strings and parentheses are skipped */
 int terminator_after(str line, int from) {
     int position = from;
     int parens = 0;
@@ -70,8 +70,8 @@ int terminator_after(str line, int from) {
     return 0;
 }
 
-// a number with its unit: the end of both; the number is NUMBER, the unit
-// (tree-sitter calls it a string) STRING
+/* a number with its unit: the end of both; the number is NUMBER, the unit
+ * (tree-sitter calls it a string) STRING */
 int emit_number(SYN_scanner.Scanner scanner, str line, int from) {
     int size = line.size();
     int position = from;

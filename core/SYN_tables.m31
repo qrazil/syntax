@@ -1,7 +1,7 @@
-// Lookup tables for language detection: file extension, well-known file
-// name, interpreter of a #! line, and the names a markdown fence or
-// `:set syntax=` may use. Keys are lower case except FILES, which are
-// matched exactly.
+/* Lookup tables for language detection: file extension, well-known file
+ * name, interpreter of a #! line, and the names a markdown fence or
+ * `:set syntax=` may use. Keys are lower case except FILES, which are
+ * matched exactly. */
 
 pub const Map<str, str> EXT = {
     "asm": "asm",

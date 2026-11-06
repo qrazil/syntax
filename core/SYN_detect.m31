@@ -1,9 +1,9 @@
-// Which language a buffer is: by an explicit modeline, then by file name and
-// extension, then by a `#!` interpreter.
-//
-//   language_of(path, first_line)   "c", "rust", ...; "" when unknown
-//   alias_of(tag)                   the language a name or alias stands for
-//                                   ("py", "rs", "shell", "c++"); "" if none
+/* Which language a buffer is: by an explicit modeline, then by file name and
+ * extension, then by a `#!` interpreter.
+ *
+ *   language_of(path, first_line)   "c", "rust", ...; "" when unknown
+ *   alias_of(tag)                   the language a name or alias stands for
+ *                                   ("py", "rs", "shell", "c++"); "" if none */
 
 import core.SYN_tables;
 
@@ -17,8 +17,8 @@ str base_of(str path) {
     return path.substr(slash + 1, path.size());
 }
 
-// the part of a base name after its last dot ("" when there is none; a
-// leading dot counts, so ".bashrc" is "bashrc")
+/* the part of a base name after its last dot ("" when there is none; a
+ * leading dot counts, so ".bashrc" is "bashrc") */
 str extension_of(str base) {
     int dot = -1;
     for (int index in 0 .. base.size()) {
@@ -96,8 +96,8 @@ str modeline_of(str line) {
     return "";
 }
 
-/// The language of a file: a modeline on the first line, else its name or
-/// extension, else a `#!` line. "" when unknown (plain text).
+/** The language of a file: a modeline on the first line, else its name or
+ * extension, else a `#!` line. "" when unknown (plain text). */
 pub str language_of(str path, str first_line) {
     str hinted = modeline_of(first_line);
     if (hinted != "") {

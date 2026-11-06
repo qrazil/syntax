@@ -1,11 +1,11 @@
-// The scanner: the reusable buffer a line is tokenized into, and the cache
-// of compiled languages. One scanner serves any number of lines and
-// languages; nothing is allocated per token.
-//
-// After `SYN_engine.scan(scanner, lang, line, state)`:
-//   `spans`   flat triples: start, end (exclusive, bytes), class. Sorted,
-//             non-overlapping; bytes in no span are NORMAL.
-//   `state`   what the next line must be scanned from (0 = plain).
+/* The scanner: the reusable buffer a line is tokenized into, and the cache
+ * of compiled languages. One scanner serves any number of lines and
+ * languages; nothing is allocated per token.
+ *
+ * After `SYN_engine.scan(scanner, lang, line, state)`:
+ *   `spans`   flat triples: start, end (exclusive, bytes), class. Sorted,
+ *             non-overlapping; bytes in no span are NORMAL.
+ *   `state`   what the next line must be scanned from (0 = plain). */
 
 import core.SYN_lang;
 
@@ -14,15 +14,15 @@ pub type Scanner {
     pub int state = 0;
     pub Map<str, SYN_lang.Lang> langs = {};
     pub SYN_lang.Lang plain = SYN_lang.Lang("plain");
-    // an injection request, set by a host mode (markdown fence, <script>):
-    // scan line[inj_from .. inj_to] with language `inj_lang` from the inner
-    // state `inj_state`; the engine merges the spans and packs the state.
+    /* an injection request, set by a host mode (markdown fence, <script>):
+     * scan line[inj_from .. inj_to] with language `inj_lang` from the inner
+     * state `inj_state`; the engine merges the spans and packs the state. */
     pub str inj_lang = "";
     pub int inj_from = 0;
     pub int inj_to = 0;
     pub int inj_state = 0;
-    // the class given to the bytes of the injected range the inner language
-    // leaves NORMAL (a fenced block is RAW all through), 0 for none
+    /* the class given to the bytes of the injected range the inner language
+     * leaves NORMAL (a fenced block is RAW all through), 0 for none */
     pub int inj_fill = 0;
 }
 

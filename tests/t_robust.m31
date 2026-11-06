@@ -1,8 +1,8 @@
-// No input may trap: every language is fed random lines built from the
-// bytes that begin or end constructs (quotes, comment openers, sigils,
-// brackets, multi-byte characters), with state carried from line to line,
-// and the same lines are re-walked incrementally. A trap would end the
-// test, so the summary line is the check.
+/* No input may trap: every language is fed random lines built from the
+ * bytes that begin or end constructs (quotes, comment openers, sigils,
+ * brackets, multi-byte characters), with state carried from line to line,
+ * and the same lines are re-walked incrementally. A trap would end the
+ * test, so the summary line is the check. */
 
 import core.SYN_highlight;
 import core.SYN_registry;

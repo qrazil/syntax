@@ -1,16 +1,16 @@
-// Light structure on the token stream: no parser, only what the tokenizer
-// already knows, so a bracket in a string or a comment is never a bracket.
-//
-//   match_bracket(highlighter, line, col)   [line, col] of the partner, [] if none
-//   comment_leader(language)      "// ", "# ", "-- ": what `gc` inserts
-//   is_commented(leader, text) / comment_line(leader, text) / uncomment_line(leader, text)
-//   is_block_opener(highlighter, line)          the line ends a block header: indent the next
-//   is_block_closer(highlighter, line)         the line starts with a closer: outdent it
-//   indent_delta(highlighter, line)         opens - closes, for auto-indent
-//   symbols(highlighter)                    functions and types, for an outline
-//
-// All of them take the `Highlighter` the buffer already has, so the classes
-// of a line are the ones it draws with.
+/* Light structure on the token stream: no parser, only what the tokenizer
+ * already knows, so a bracket in a string or a comment is never a bracket.
+ *
+ *   match_bracket(highlighter, line, col)   [line, col] of the partner, [] if none
+ *   comment_leader(language)      "// ", "# ", "-- ": what `gc` inserts
+ *   is_commented(leader, text) / comment_line(leader, text) / uncomment_line(leader, text)
+ *   is_block_opener(highlighter, line)          the line ends a block header: indent the next
+ *   is_block_closer(highlighter, line)         the line starts with a closer: outdent it
+ *   indent_delta(highlighter, line)         opens - closes, for auto-indent
+ *   symbols(highlighter)                    functions and types, for an outline
+ *
+ * All of them take the `Highlighter` the buffer already has, so the classes
+ * of a line are the ones it draws with. */
 
 import core.SYN_class;
 import core.SYN_code;
@@ -53,10 +53,10 @@ bool is_code_class(int class_value) {
     return class_value != SYN_class.COMMENT && class_value != SYN_class.STRING && class_value != SYN_class.RAW && class_value != SYN_class.SPECIAL && class_value != SYN_class.LINK;
 }
 
-/// The bracket matching the one at (`line`, `col`), as [line, col]; empty
-/// when the byte there is not a bracket, is inside a string or comment, or
-/// has no partner within 20000 lines. Brackets inside strings and comments
-/// are skipped over.
+/** The bracket matching the one at (`line`, `col`), as [line, col]; empty
+ * when the byte there is not a bracket, is inside a string or comment, or
+ * has no partner within 20000 lines. Brackets inside strings and comments
+ * are skipped over. */
 pub List<int> match_bracket(SYN_highlight.Highlighter highlighter, int line, int col) {
     if (line < 0 || line >= highlighter.lines.size() || col < 0 || col >= highlighter.lines[line].size()) {
         return [];
@@ -111,8 +111,8 @@ pub List<int> match_bracket(SYN_highlight.Highlighter highlighter, int line, int
     return [];
 }
 
-/// The comment leader of a language ("// ", "# ", "-- "), or "" when it has
-/// none (JSON, plain text): what a line-comment toggle writes.
+/** The comment leader of a language ("// ", "# ", "-- "), or "" when it has
+ * none (JSON, plain text): what a line-comment toggle writes. */
 pub str comment_leader(str language) {
     if (language == "") {
         return "";
@@ -120,11 +120,13 @@ pub str comment_leader(str language) {
     return SYN_registry.load(language).comment_leader;
 }
 
-/// How a language writes comments, for toggling: [leader, open, close].
-/// `leader` is the line comment ("// ", "" when there is none); `open` and
-/// `close` the first block comment form ("/*", "*/"), "" when there is none.
-/// A language with only block comments (CSS, HTML, OCaml) has an empty leader
-/// and wraps the line in `open ... close`.
+/**
+ * How a language writes comments, for toggling: [leader, open, close].
+ * `leader` is the line comment ("// ", "" when there is none); `open` and
+ * `close` the first block comment form (slash-star and star-slash for C),
+ * "" when there is none. A language with only block comments (CSS, HTML,
+ * OCaml) has an empty leader and wraps the line in `open ... close`.
+ */
 pub List<str> comment_forms(str language) {
     List<str> out = ["", "", ""];
     if (language == "") {
@@ -219,9 +221,9 @@ bool is_word_ending(str text, int last, str word) {
     return true;
 }
 
-/// Does `line` end in a block opener, so the next line is indented? By the
-/// language's style: an open bracket (`{ ( [`); for colon languages a
-/// trailing `:`; for keyword languages `then`, `do`, `begin`, `else`...
+/** Does `line` end in a block opener, so the next line is indented? By the
+ * language's style: an open bracket (`{ ( [`); for colon languages a
+ * trailing `:`; for keyword languages `then`, `do`, `begin`, `else`... */
 pub bool is_block_opener(SYN_highlight.Highlighter highlighter, int line) {
     if (line < 0 || line >= highlighter.lines.size() || highlighter.language == "") {
         return false;
@@ -245,8 +247,8 @@ pub bool is_block_opener(SYN_highlight.Highlighter highlighter, int line) {
     return false;
 }
 
-/// Does `line` begin with a closing bracket or block-ending keyword, so it
-/// is outdented one level?
+/** Does `line` begin with a closing bracket or block-ending keyword, so it
+ * is outdented one level? */
 pub bool is_block_closer(SYN_highlight.Highlighter highlighter, int line) {
     if (line < 0 || line >= highlighter.lines.size() || highlighter.language == "") {
         return false;
@@ -283,9 +285,9 @@ pub bool is_block_closer(SYN_highlight.Highlighter highlighter, int line) {
     return false;
 }
 
-/// +1 when the line opens a block, -1 when it closes one, 0 for both or
-/// neither: how much the indentation of the line after it changes relative to
-/// this line's own.
+/** +1 when the line opens a block, -1 when it closes one, 0 for both or
+ * neither: how much the indentation of the line after it changes relative to
+ * this line's own. */
 pub int indent_delta(SYN_highlight.Highlighter highlighter, int line) {
     int out = 0;
     if (is_block_opener(highlighter, line)) {
@@ -301,11 +303,11 @@ bool is_ident_byte(int byte) {
     return (byte >= 65 && byte <= 90) || (byte >= 97 && byte <= 122) || (byte >= 48 && byte <= 57) || byte == 95 || byte >= 128;
 }
 
-/// Functions and types declared in the buffer, in order: a keyword the
-/// language marks as a declaration (`fn`, `def`, `class`...) followed by a
-/// name; and, for C-like languages (`symbol_style` "c"), a `type name(...)`
-/// header at the language's declaration depth. A heuristic over tokens; a
-/// declaration split across lines is missed.
+/** Functions and types declared in the buffer, in order: a keyword the
+ * language marks as a declaration (`fn`, `def`, `class`...) followed by a
+ * name; and, for C-like languages (`symbol_style` "c"), a `type name(...)`
+ * header at the language's declaration depth. A heuristic over tokens; a
+ * declaration split across lines is missed. */
 pub List<Symbol> symbols(SYN_highlight.Highlighter highlighter) {
     List<Symbol> out = [];
     if (highlighter.language == "") {

@@ -1,18 +1,18 @@
-// A language definition, and the tables compiled from it.
-//
-// A language is DATA: word lists, comment and string forms, a few flags. A
-// language file (langs/SYN_l_NAME.m31) fills a `Lang` and calls `build()`,
-// which compiles the lists once into
-//
-//   - `start`: a 256-entry table, one mask per byte, saying which token
-//     kinds can begin with that byte (so the scanner's hot loop is a table
-//     lookup, and a byte that begins nothing costs one load);
-//   - `table`/`blob`: an open-addressing hash table of the keyword, type,
-//     constant and builtin words, keyed on the identifier's bytes, so
-//     classifying an identifier allocates nothing.
-//
-// Fields marked "spec" are written by the language file; the rest is
-// compiled.
+/* A language definition, and the tables compiled from it.
+ *
+ * A language is DATA: word lists, comment and string forms, a few flags. A
+ * language file (langs/SYN_l_NAME.m31) fills a `Lang` and calls `build()`,
+ * which compiles the lists once into
+ *
+ *   - `start`: a 256-entry table, one mask per byte, saying which token
+ *     kinds can begin with that byte (so the scanner's hot loop is a table
+ *     lookup, and a byte that begins nothing costs one load);
+ *   - `table`/`blob`: an open-addressing hash table of the keyword, type,
+ *     constant and builtin words, keyed on the identifier's bytes, so
+ *     classifying an identifier allocates nothing.
+ *
+ * Fields marked "spec" are written by the language file; the rest is
+ * compiled. */
 
 import core.SYN_class;
 
@@ -26,8 +26,8 @@ pub const int M_ATTR = 32;
 pub const int M_BODY = 64;
 pub const int M_PREPROC = 128;
 pub const int M_SPECIAL = 256;
-// a decl marker on a table entry: the word makes the next identifier a
-// function (1) or a type (2) declaration
+/* a decl marker on a table entry: the word makes the next identifier a
+ * function (1) or a type (2) declaration */
 pub const int DECL_FN = 1;
 pub const int DECL_TYPE = 2;
 
@@ -94,20 +94,20 @@ pub void Lang.line_comment(str open) {
     line_comments.push(open);
 }
 
-/// A block comment form. `flags`: "n" nests, "L" is a Lua-style long
-/// bracket (`--[==[ ... ]==]`: `open` is the part before the `=`s and `[`).
+/** A block comment form. `flags`: "n" nests, "L" is a Lua-style long
+ * bracket (`--[==[ ... ]==]`: `open` is the part before the `=`s and `[`). */
 pub void Lang.block_comment(str open, str close, str flags) {
     block_comments.push(open);
     block_comments.push(close);
     block_comments.push(flags);
 }
 
-/// A string form. `escape` is the escape byte ("\\"), "" for none, or
-/// "doubled" when the closing quote doubled stands for itself. `flags`:
-/// "m" may span lines, "c" is a char literal that must be short (so a
-/// Rust lifetime `'a` is not one), "R" a Rust raw string (`open` is the
-/// prefix, e.g. `r`; hashes and the quote follow), "L" a Lua long bracket,
-/// "i" interpolates (its `${..}`/`{..}` parts are painted as code).
+/** A string form. `escape` is the escape byte ("\\"), "" for none, or
+ * "doubled" when the closing quote doubled stands for itself. `flags`:
+ * "m" may span lines, "c" is a char literal that must be short (so a
+ * Rust lifetime `'a` is not one), "R" a Rust raw string (`open` is the
+ * prefix, e.g. `r`; hashes and the quote follow), "L" a Lua long bracket,
+ * "i" interpolates (its `${..}`/`{..}` parts are painted as code). */
 pub void Lang.string(str open, str close, str escape, str flags) {
     strings.push(open);
     strings.push(close);
@@ -223,8 +223,8 @@ pub Lang Lang.build() {
     return this;
 }
 
-/// The table entry of the identifier `text[from .. upto]`, or 0: class in the
-/// low 8 bits, decl marker in bits 8..9.
+/** The table entry of the identifier `text[from .. upto]`, or 0: class in the
+ * low 8 bits, decl marker in bits 8..9. */
 pub int Lang.lookup(str text, int from, int upto) {
     int length = upto - from;
     if (length <= 0 || length > 4095) {

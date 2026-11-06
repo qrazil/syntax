@@ -1,6 +1,6 @@
-// The checks the editor's and tui's highlighters were written against, run on
-// this library: class-per-byte results are folded onto the original twelve
-// classes (`SYN_class.legacy`), so what an older consumer sees is unchanged.
+/* The checks the editor's and tui's highlighters were written against, run on
+ * this library: class-per-byte results are folded onto the original twelve
+ * classes (`SYN_class.legacy`), so what an older consumer sees is unchanged. */
 
 import core.SYN_class;
 import core.SYN_detect;

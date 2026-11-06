@@ -1,21 +1,21 @@
-// HTML, XML, Vue and Svelte: tags, attributes, comments, entities, the
-// text of a few elements (links, headings, emphasis, code) and the raw-text
-// elements <script> and <style>, whose bodies are handed to javascript /
-// typescript / css (an attribute `lang="ts"` or `lang="scss"` picks the
-// dialect).
-//
-// Own state
-//   bits 0..3    kind: 0 text, 1 inside a tag, 2 inside <!-- -->, 3 in a
-//                <script> body, 4 in a <style> body, 5 inside <![CDATA[ ]]>
-//   bits 4..7    in a tag: the element (0 other, 1 script, 2 style, 3 a
-//                closing tag, 4 a, 5 title/h1-h6, 6 b/strong, 7 i/em, 8
-//                code/kbd, 9 s/del); in a script or style body: the dialect
-//   bits 8..9    in a tag: 0, or 1 / 2 when a `"` / `'` value continues on
-//                the next line
-//   bits 12..13  in a tag: the dialect named so far (1 ts / scss, 2 less)
-//   bits 14..17  in a tag or in text: the class of the element's text
-// A script or style body also uses bits 12.. as the engine's injection
-// protocol says (id of the language, then its state).
+/* HTML, XML, Vue and Svelte: tags, attributes, comments, entities, the
+ * text of a few elements (links, headings, emphasis, code) and the raw-text
+ * elements <script> and <style>, whose bodies are handed to javascript /
+ * typescript / css (an attribute `lang="ts"` or `lang="scss"` picks the
+ * dialect).
+ *
+ * Own state
+ *   bits 0..3    kind: 0 text, 1 inside a tag, 2 inside <!-- -->, 3 in a
+ *                <script> body, 4 in a <style> body, 5 inside <![CDATA[ ]]>
+ *   bits 4..7    in a tag: the element (0 other, 1 script, 2 style, 3 a
+ *                closing tag, 4 a, 5 title/h1-h6, 6 b/strong, 7 i/em, 8
+ *                code/kbd, 9 s/del); in a script or style body: the dialect
+ *   bits 8..9    in a tag: 0, or 1 / 2 when a `"` / `'` value continues on
+ *                the next line
+ *   bits 12..13  in a tag: the dialect named so far (1 ts / scss, 2 less)
+ *   bits 14..17  in a tag or in text: the class of the element's text
+ * A script or style body also uses bits 12.. as the engine's injection
+ * protocol says (id of the language, then its state). */
 
 import core.SYN_class;
 import core.SYN_lang;

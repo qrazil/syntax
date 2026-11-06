@@ -1,12 +1,12 @@
-// The generic code scanner: comments, strings, numbers, words, driven by a
-// compiled `Lang`. One pass over the line, a table lookup per byte.
-//
-// State carried across lines (low 12 bits; the rest belongs to the host):
-//   kind = state & 15            0 plain, 1 inside a block comment,
-//                                2 inside a multi-line string,
-//                                3 inside a heredoc (hash of its end word in bits 12..)
-//   index = (state >> 4) & 15    which comment or string form
-//   level = (state >> 8) & 15    nesting depth, or `=` count of a long bracket
+/* The generic code scanner: comments, strings, numbers, words, driven by a
+ * compiled `Lang`. One pass over the line, a table lookup per byte.
+ *
+ * State carried across lines (low 12 bits; the rest belongs to the host):
+ *   kind = state & 15            0 plain, 1 inside a block comment,
+ *                                2 inside a multi-line string,
+ *                                3 inside a heredoc (hash of its end word in bits 12..)
+ *   index = (state >> 4) & 15    which comment or string form
+ *   level = (state >> 8) & 15    nesting depth, or `=` count of a long bracket */
 
 import core.SYN_class;
 import core.SYN_lang;
@@ -39,9 +39,9 @@ pub bool is_match_at(str line, int position, str pattern) {
     return true;
 }
 
-// the position after the closing delimiter of block comment form `form`,
-// scanning from `from` with `depth` open levels (or the `=` count of a long
-// bracket); a negative answer -(d + 1) means still open at depth d
+/* the position after the closing delimiter of block comment form `form`,
+ * scanning from `from` with `depth` open levels (or the `=` count of a long
+ * bracket); a negative answer -(d + 1) means still open at depth d */
 int block_end(SYN_lang.Lang lang, str line, int from, int form, int depth) {
     str closer = lang.block_comments[form * 3 + 1];
     str flags = lang.block_comments[form * 3 + 2];
@@ -70,8 +70,8 @@ int block_end(SYN_lang.Lang lang, str line, int from, int form, int depth) {
     return -(level + 1);
 }
 
-// the position after the closing delimiter of string form `form` scanning
-// from `from`, or -1 when the line ends first
+/* the position after the closing delimiter of string form `form` scanning
+ * from `from`, or -1 when the line ends first */
 int string_end(SYN_lang.Lang lang, str line, int from, int form, int level) {
     str closer = lang.strings[form * 4 + 1];
     str esc = lang.strings[form * 4 + 2];
@@ -216,8 +216,8 @@ int string_form_at(SYN_lang.Lang lang, str line, int position) {
     return -1;
 }
 
-// the end of the opening delimiter of a Rust raw / Lua long form at `position`,
-// and the level, packed: (level << 20) | position after the opening
+/* the end of the opening delimiter of a Rust raw / Lua long form at `position`,
+ * and the level, packed: (level << 20) | position after the opening */
 int open_end(SYN_lang.Lang lang, str line, int position, int form) {
     str open = lang.strings[form * 4];
     str flags = lang.strings[form * 4 + 3];
@@ -287,8 +287,8 @@ bool is_command_keyword(str line, int from, int upto) {
     return is_match_at(line, from, "then") || is_match_at(line, from, "else") || is_match_at(line, from, "elif") || is_match_at(line, from, "do") || is_match_at(line, from, "while") || is_match_at(line, from, "until") || is_match_at(line, from, "if") || is_match_at(line, from, "time");
 }
 
-// import, from, use, using, package, include, require: a line that names
-// modules, whose dotted names are not member accesses
+/* import, from, use, using, package, include, require: a line that names
+ * modules, whose dotted names are not member accesses */
 bool is_import_word(str line, int from, int upto) {
     int length = upto - from;
     if (length < 3 || length > 7) {
@@ -297,8 +297,8 @@ bool is_import_word(str line, int from, int upto) {
     return is_match_at(line, from, "import") || is_match_at(line, from, "from") || is_match_at(line, from, "use") || is_match_at(line, from, "using") || is_match_at(line, from, "package") || is_match_at(line, from, "include") || is_match_at(line, from, "require") || is_match_at(line, from, "extern");
 }
 
-// can a `/` at `at` begin a regex literal (JavaScript's rule: an operand
-// does not precede it)? the end of the literal, or -1
+/* can a `/` at `at` begin a regex literal (JavaScript's rule: an operand
+ * does not precede it)? the end of the literal, or -1 */
 int regex_end(str line, int start) {
     int size = line.size();
     int before = start - 1;
@@ -355,8 +355,8 @@ int regex_end(str line, int start) {
     return -1;
 }
 
-// the end of the variable reference whose sigil is at `at` ($name, ${...},
-// $1, $?), or `at + 1` when nothing follows that names one
+/* the end of the variable reference whose sigil is at `at` ($name, ${...},
+ * $1, $?), or `at + 1` when nothing follows that names one */
 int variable_end(str line, int start) {
     int size = line.size();
     int stop = start + 1;
@@ -385,9 +385,9 @@ int variable_end(str line, int start) {
     return stop;
 }
 
-// The name inside the variable reference [from, upto) when it is a capitals
-// name (or a special parameter, `$1`, `$?`), as (start << 20) | stop; -1 when
-// it is not, and tree-sitter's shell leaves it alone.
+/* The name inside the variable reference [from, upto) when it is a capitals
+ * name (or a special parameter, `$1`, `$?`), as (start << 20) | stop; -1 when
+ * it is not, and tree-sitter's shell leaves it alone. */
 int variable_constant(str line, int from, int upto) {
     int name_from = from + 1;
     if (name_from < upto && line.byte_at(name_from) == 123) {
@@ -412,8 +412,8 @@ int variable_constant(str line, int from, int upto) {
     return (name_from << 20) | name_to;
 }
 
-// A block comment's bytes [from, upto). In a doc comment (`/** */`) the
-// `@tag`s are keywords and `{Type}`s types, as tree-sitter's jsdoc has them.
+/* A block comment's bytes [from, upto). In a doc comment (one opened with
+ * two stars) the `@tag`s are keywords and `{Type}`s types, as tree-sitter's jsdoc has them. */
 void emit_comment(SYN_scanner.Scanner scanner, str line, int from, int upto, bool is_doc) {
     if (!is_doc) {
         scanner.emit(from, upto, SYN_class.COMMENT);
@@ -521,15 +521,15 @@ bool is_object_key(SYN_lang.Lang lang, str line, int position, int colon) {
     }
     int byte = line.byte_at(before);
     if (byte == 123 || byte == 44) {
-        // a typed parameter list `(a: number, b: string)` is not a key; an
-        // arrow-valued key is one wherever it stands
+        /* a typed parameter list `(a: number, b: string)` is not a key; an
+         * arrow-valued key is one wherever it stands */
         return lang.has_object_keys || is_function_value(line, colon + 1);
     }
     return is_function_value(line, colon + 1) && lang.has_arrow_keys;
 }
 
-// A string's bytes [from, upto): STRING, with escapes (`\n`, `\x41`, `\u{1F600}`,
-// `\101`) as SPECIAL, as the form's single escape byte says.
+/* A string's bytes [from, upto): STRING, with escapes (`\n`, `\x41`, `\u{1F600}`,
+ * `\101`) as SPECIAL, as the form's single escape byte says. */
 void emit_string(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int from, int upto, int form, int base_class) {
     str esc = lang.strings[form * 4 + 2];
     bool is_interpolating = lang.sigil.size() > 0 && lang.strings[form * 4 + 3].contains("i");
@@ -644,8 +644,8 @@ void emit_string(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int 
     scanner.emit(run, upto, base_class);
 }
 
-/// Scan one line of a code language from `state`; fills `scanner.spans` and
-/// `scanner.state`.
+/** Scan one line of a code language from `state`; fills `scanner.spans` and
+ * `scanner.state`. */
 pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int state) {
     int size = line.size();
     int position = 0;
@@ -1126,8 +1126,8 @@ pub void scan(SYN_scanner.Scanner scanner, SYN_lang.Lang lang, str line, int sta
                         }
                         stop = stop + 1;
                     }
-                    // #[derive(Debug, Clone)]: the brackets are plain, a name followed
-                    // by `(` is a call, a capitalised name a type, strings strings
+                    /* #[derive(Debug, Clone)]: the brackets are plain, a name followed
+                     * by `(` is a call, a capitalised name a type, strings strings */
                     int inner = position + open.size();
                     int inner_end = stop - 1;
                     while (inner < inner_end) {

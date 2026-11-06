@@ -5,7 +5,7 @@
 #
 # What is checked:
 #
-#   house style    m31c fmt --check, m31c lint
+#   house style    m31c -fmt --check, m31c -lint
 #   unit tests     tests/t_*.m31, each prints "N passed, M failed" last
 #   oracle         our tokens against recorded tree-sitter highlights of
 #                  tests/oracle/fixtures, per language, never below its floor
@@ -43,7 +43,7 @@ bad()  { printf '\033[31mFAIL\033[0m %s\n' "$1"; shift; printf '%s\n' "$@" | sed
 build() {
     local name=$1
     local source=${2:-tests/$name.m31}
-    if ! "$LANGC" --emit-c "$source" -o "$WORK/$name.c" 2>"$WORK/$name.diag"; then
+    if ! "$LANGC" -emit-c "$source" --out "$WORK/$name.c" 2>"$WORK/$name.diag"; then
         bad "compile $name" "$(head -5 "$WORK/$name.diag")"
         return 1
     fi
@@ -58,13 +58,13 @@ build() {
 
 # --- house style -----------------------------------------------------------------
 
-if out=$("$LANGC" fmt --check -r . 2>&1); then
+if out=$("$LANGC" -fmt --check --recursive . 2>&1); then
     note "source is formatted"
 else
-    bad "source is not formatted (run: m31c fmt -r .)" "$out"
+    bad "source is not formatted (run: m31c -fmt --recursive .)" "$out"
 fi
 
-if out=$("$LANGC" lint . 2>&1) && printf '%s\n' "$out" | grep -q '^0 finding(s)'; then
+if out=$("$LANGC" -lint . 2>&1) && printf '%s\n' "$out" | grep -q '^0 finding(s)'; then
     note "lint: no findings"
 else
     bad "lint" "$(printf '%s\n' "$out" | head -10)"

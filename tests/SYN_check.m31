@@ -1,11 +1,11 @@
-// Test helpers: a tally, and `snap`, which checks the classes of lines of one
-// language against a mask drawn under the source.
-//
-// Mask letters, one per byte (a short mask means NORMAL for the rest):
-//   ' ' normal  c comment  s string  0 number  k keyword  t type
-//   f function name  l call  p preproc  o constant  x special/escape
-//   highlighter heading  y property  g tag  a attribute  + added  - removed
-//   u link  e emphasis  b strong  r raw  v builtin variable  m member
+/* Test helpers: a tally, and `snap`, which checks the classes of lines of one
+ * language against a mask drawn under the source.
+ *
+ * Mask letters, one per byte (a short mask means NORMAL for the rest):
+ *   ' ' normal  c comment  s string  0 number  k keyword  t type
+ *   f function name  l call  p preproc  o constant  x special/escape
+ *   highlighter heading  y property  g tag  a attribute  + added  - removed
+ *   u link  e emphasis  b strong  r raw  v builtin variable  m member */
 
 import core.SYN_class;
 import core.SYN_highlight;
@@ -46,9 +46,9 @@ pub void Check.finish() {
     print(str(passed) + " passed, " + str(failed) + " failed");
 }
 
-/// Check `masks[i]` against the classes of `lines[i]` in language `lang`;
-/// the lines are one file, so state carries from one to the next. Trailing
-/// spaces of a mask do not matter.
+/** Check `masks[i]` against the classes of `lines[i]` in language `lang`;
+ * the lines are one file, so state carries from one to the next. Trailing
+ * spaces of a mask do not matter. */
 pub void Check.snap(str lang, List<str> lines, List<str> masks) {
     SYN_highlight.Highlighter highlighter = SYN_highlight.Highlighter(language: lang);
     highlighter.set_lines(lines);

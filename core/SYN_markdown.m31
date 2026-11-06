@@ -1,9 +1,9 @@
-// Markdown: one line at a time, with fenced code blocks handed to the
-// language their info string names (the engine scans the fence body with it
-// and keeps its state in the bits above this mode's own).
-//
-// State (own bits): 0 outside a fence, 1 inside a fence of unknown language,
-// 2 inside a fence whose language is injected (its id in bits 12..19).
+/* Markdown: one line at a time, with fenced code blocks handed to the
+ * language their info string names (the engine scans the fence body with it
+ * and keeps its state in the bits above this mode's own).
+ *
+ * State (own bits): 0 outside a fence, 1 inside a fence of unknown language,
+ * 2 inside a fence whose language is injected (its id in bits 12..19). */
 
 import core.SYN_class;
 import core.SYN_detect;
@@ -46,8 +46,8 @@ void paint(List<int> classes, int from, int stop, int class_value) {
     }
 }
 
-/// The language named by a fence's info string ("" when unknown), e.g. the
-/// "rust" of "```rust", "rs", "{.python}", "python title=x".
+/** The language named by a fence's info string ("" when unknown), e.g. the
+ * "rust" of "```rust", "rs", "{.python}", "python title=x". */
 str fence_language(str trimmed) {
     int start = 0;
     while (start < trimmed.size() && (trimmed.byte_at(start) == 96 || trimmed.byte_at(start) == 126)) {
@@ -126,9 +126,9 @@ int run_end(str line, int from, int byte) {
     return index;
 }
 
-// Inline spans of [from, stop): code, links, images, autolinks, bare URLs,
-// emphasis (TYPE), strong (KEYWORD), strikethrough, HTML comments. Text that
-// matches nothing keeps the class painted before the call.
+/* Inline spans of [from, stop): code, links, images, autolinks, bare URLs,
+ * emphasis (TYPE), strong (KEYWORD), strikethrough, HTML comments. Text that
+ * matches nothing keeps the class painted before the call. */
 void markdown_inline(List<int> classes, str line, int from, int stop) {
     int index = from;
     while (index < stop) {
@@ -329,9 +329,9 @@ void markdown_inline(List<int> classes, str line, int from, int stop) {
     }
 }
 
-// The classes of a line outside any fence. `flags` is what the lines above
-// left: 1 the line before was blank, 2 inside a list item, 4 the line before
-// was indented code, 8 the line before was a paragraph line.
+/* The classes of a line outside any fence. `flags` is what the lines above
+ * left: 1 the line before was blank, 2 inside a list item, 4 the line before
+ * was indented code, 8 the line before was a paragraph line. */
 List<int> line_classes(str line, str trimmed, int flags) {
     List<int> classes = [0; line.size()];
     int size = line.size();
@@ -342,8 +342,8 @@ List<int> line_classes(str line, str trimmed, int flags) {
     if (start == size) {
         return classes;
     }
-    // an indented code block: four spaces (or a tab), after a blank line or
-    // another code line, outside a list
+    /* an indented code block: four spaces (or a tab), after a blank line or
+     * another code line, outside a list */
     bool is_indented = start >= 4 || (start > 0 && line.byte_at(0) == 9);
     if (is_indented && ((flags & 1) != 0 || (flags & 4) != 0) && (flags & 2) == 0) {
         paint(classes, 0, size, RAW);
